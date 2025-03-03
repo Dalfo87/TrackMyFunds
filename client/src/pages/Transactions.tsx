@@ -9,7 +9,6 @@ import AddIcon from '@mui/icons-material/Add';
 import { transactionApi, cryptoApi } from '../services/api';
 import TransactionsList from '../components/transactions/TransactionsList';
 import TransactionForm from '../components/transactions/TransactionForm';
-import AirdropForm from '../components/transactions/AirdropForm';
 
 const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -18,7 +17,6 @@ const Transactions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
-  const [dialogType, setDialogType] = useState<'transaction' | 'airdrop'>('transaction');
 
   // Carica i dati all'avvio della pagina
   useEffect(() => {
@@ -55,13 +53,6 @@ const Transactions: React.FC = () => {
 
   // Apre il dialog per aggiungere una nuova transazione
   const handleOpenTransactionDialog = () => {
-    setDialogType('transaction');
-    setOpenDialog(true);
-  };
-
-  // Apre il dialog per registrare un airdrop
-  const handleOpenAirdropDialog = () => {
-    setDialogType('airdrop');
     setOpenDialog(true);
   };
 
@@ -70,27 +61,21 @@ const Transactions: React.FC = () => {
     setOpenDialog(false);
   };
 
-  // Aggiunge una nuova transazione
+  // Aggiunge una nuova transazione (standard o airdrop)
   const handleAddTransaction = async (transactionData: any) => {
     try {
-      await transactionApi.add(transactionData);
+      // Determina se è un airdrop o una transazione normale in base al tipo
+      if (transactionData.type === 'airdrop') {
+        await transactionApi.recordAirdrop(transactionData);
+      } else {
+        await transactionApi.add(transactionData);
+      }
+      
       handleCloseDialog();
       fetchData(); // Ricarica i dati
     } catch (error) {
       console.error('Errore nell\'aggiunta della transazione:', error);
       setError('Errore nell\'aggiunta della transazione. Riprova più tardi.');
-    }
-  };
-
-  // Registra un nuovo airdrop
-  const handleAddAirdrop = async (airdropData: any) => {
-    try {
-      await transactionApi.recordAirdrop(airdropData);
-      handleCloseDialog();
-      fetchData(); // Ricarica i dati
-    } catch (error) {
-      console.error('Errore nella registrazione dell\'airdrop:', error);
-      setError('Errore nella registrazione dell\'airdrop. Riprova più tardi.');
     }
   };
 
@@ -112,16 +97,8 @@ const Transactions: React.FC = () => {
               variant="contained" 
               startIcon={<AddIcon />}
               onClick={handleOpenTransactionDialog}
-              sx={{ mr: 1 }}
             >
               Nuova Transazione
-            </Button>
-            <Button 
-              variant="outlined" 
-              startIcon={<AddIcon />}
-              onClick={handleOpenAirdropDialog}
-            >
-              Registra Airdrop
             </Button>
           </Box>
         </Box>
@@ -152,23 +129,16 @@ const Transactions: React.FC = () => {
         </Paper>
       </Grid>
       
-      {/* Dialog per aggiungere transazioni o airdrop */}
+      {/* Dialog per aggiungere transazioni con supporto per tutti i tipi */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {dialogType === 'transaction' ? 'Aggiungi Transazione' : 'Registra Airdrop'}
+          Aggiungi Transazione
         </DialogTitle>
         <DialogContent>
-          {dialogType === 'transaction' ? (
-            <TransactionForm 
-              cryptos={cryptos} 
-              onSubmit={handleAddTransaction} 
-            />
-          ) : (
-            <AirdropForm 
-              cryptos={cryptos} 
-              onSubmit={handleAddAirdrop} 
-            />
-          )}
+          <TransactionForm 
+            cryptos={cryptos} 
+            onSubmit={handleAddTransaction} 
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Annulla</Button>

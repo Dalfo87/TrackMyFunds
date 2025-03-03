@@ -1,9 +1,9 @@
 // client/src/components/transactions/TransactionForm.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
-  Button, Grid, Box, FormHelperText 
+  Button, Grid, Box, FormHelperText, Typography 
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -29,6 +29,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
   });
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isAirdropType, setIsAirdropType] = useState(false);
+
+  // Effetto per gestire il cambiamento del tipo di transazione
+  useEffect(() => {
+    if (formData.type === 'airdrop') {
+      setIsAirdropType(true);
+      // Imposta automaticamente prezzo e totale a zero per airdrop
+      setFormData(prev => ({
+        ...prev,
+        pricePerUnit: '0',
+        totalAmount: '0'
+      }));
+    } else {
+      setIsAirdropType(false);
+    }
+  }, [formData.type]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
@@ -40,8 +56,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
       [name]: value
     }));
     
-    // Aggiorna automaticamente totalAmount o pricePerUnit quando l'altro cambia
-    if (name === 'quantity' || name === 'pricePerUnit' || name === 'totalAmount') {
+    // Se non è un airdrop, gestisci i calcoli automatici dei valori
+    if (!isAirdropType && (name === 'quantity' || name === 'pricePerUnit' || name === 'totalAmount')) {
       const quantity = name === 'quantity' ? parseFloat(value as string) : parseFloat(formData.quantity);
       const pricePerUnit = name === 'pricePerUnit' ? parseFloat(value as string) : parseFloat(formData.pricePerUnit);
       const totalAmount = name === 'totalAmount' ? parseFloat(value as string) : parseFloat(formData.totalAmount);
@@ -101,7 +117,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
       newErrors.quantity = 'Inserisci una quantità valida';
     }
     
-    if (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0) {
+    // Solo per transazioni non airdrop, verifica il prezzo
+    if (!isAirdropType && (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0)) {
       newErrors.pricePerUnit = 'Inserisci un prezzo valido';
     }
     
@@ -117,20 +134,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
       return;
     }
     
-      const formattedData = {
-        ...formData,
-        quantity: parseFloat(formData.quantity),
-        pricePerUnit: parseFloat(formData.pricePerUnit),
-        totalAmount: parseFloat(formData.totalAmount),
-        date: formData.date.toISOString()
-      };
-  
-      onSubmit(formattedData);
+    const formattedData = {
+      ...formData,
+      quantity: parseFloat(formData.quantity),
+      pricePerUnit: parseFloat(formData.pricePerUnit),
+      totalAmount: parseFloat(formData.totalAmount),
+      date: formData.date.toISOString()
     };
-  
-    return (
-      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="it">
-        <form onSubmit={handleSubmit}>
+    
+    onSubmit(formattedData);
+  };
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="it">
+      <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
             <FormControl fullWidth error={!!errors.cryptoSymbol}>
@@ -164,6 +181,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               >
                 <MenuItem value="buy">Acquisto</MenuItem>
                 <MenuItem value="sell">Vendita</MenuItem>
+                <MenuItem value="airdrop">Airdrop</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -193,6 +211,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               inputProps={{ step: 'any' }}
               error={!!errors.pricePerUnit}
               helperText={errors.pricePerUnit}
+              disabled={isAirdropType}
             />
           </Grid>
           
@@ -205,6 +224,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               value={formData.totalAmount}
               onChange={handleChange}
               inputProps={{ step: 'any' }}
+              disabled={isAirdropType}
             />
           </Grid>
           
@@ -217,14 +237,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
             />
           </Grid>
           
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={12}>
             <TextField
               fullWidth
               label="Categoria (opzionale)"
               name="category"
               value={formData.category}
               onChange={handleChange}
-              placeholder="es. Trading, Lungo termine"
+              placeholder="es. Trading, Lungo termine, Promo"
             />
           </Grid>
           
@@ -237,13 +257,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               onChange={handleChange}
               multiline
               rows={2}
+              placeholder="es. Dettagli sull'acquisizione, motivo, fonte..."
             />
           </Grid>
+          
+          {isAirdropType && (
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">
+                Un airdrop è un'acquisizione gratuita di criptovalute. Verrà registrato come un'acquisizione con costo zero.
+              </Typography>
+            </Grid>
+          )}
           
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="submit" variant="contained" color="primary">
-                Salva Transazione
+                {isAirdropType ? 'Registra Airdrop' : 'Salva Transazione'}
               </Button>
             </Box>
           </Grid>
