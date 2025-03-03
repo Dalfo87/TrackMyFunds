@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
-  Button, Grid, Box, FormHelperText, Typography 
+  Button, Grid, Box, FormHelperText, Typography,
+  Autocomplete
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { SelectChangeEvent } from '@mui/material/Select';
@@ -14,6 +15,11 @@ import 'dayjs/locale/it';
 interface TransactionFormProps {
   cryptos: any[];
   onSubmit: (data: any) => void;
+}
+
+interface CryptoOption {
+  symbol: string;
+  name: string;
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) => {
@@ -30,6 +36,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isAirdropType, setIsAirdropType] = useState(false);
+  const [cryptoOptions, setCryptoOptions] = useState<CryptoOption[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption | null>(null);
+
+  // Prepara le opzioni per l'autocomplete
+  useEffect(() => {
+    if (cryptos && cryptos.length > 0) {
+      const options = cryptos.map(crypto => ({
+        symbol: crypto.symbol,
+        name: crypto.name
+      }));
+      setCryptoOptions(options);
+    }
+  }, [cryptos]);
 
   // Effetto per gestire il cambiamento del tipo di transazione
   useEffect(() => {
@@ -145,29 +165,63 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
     onSubmit(formattedData);
   };
 
+  // Gestisce la selezione della criptovaluta dall'autocomplete
+  const handleCryptoChange = (event: React.SyntheticEvent, newValue: CryptoOption | null) => {
+    setSelectedCrypto(newValue);
+    setFormData(prev => ({
+      ...prev,
+      cryptoSymbol: newValue?.symbol || ''
+    }));
+    
+    // Rimuovi l'errore se presente
+    if (errors.cryptoSymbol) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.cryptoSymbol;
+        return newErrors;
+      });
+    }
+  };
+
+  // Filtra i risultati in base all'input dell'utente
+  const filterOptions = (options: CryptoOption[], { inputValue }: { inputValue: string }) => {
+    if (!inputValue) return options;
+    
+    const searchTerm = inputValue.toLowerCase();
+    return options.filter(
+      option => 
+        option.symbol.toLowerCase().includes(searchTerm) || 
+        option.name.toLowerCase().includes(searchTerm)
+    );
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="it">
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth error={!!errors.cryptoSymbol}>
-              <InputLabel>Criptovaluta</InputLabel>
-              <Select
-                name="cryptoSymbol"
-                value={formData.cryptoSymbol}
-                onChange={handleSelectChange}
-                label="Criptovaluta"
-              >
-                {cryptos.map(crypto => (
-                  <MenuItem key={crypto.symbol} value={crypto.symbol}>
-                    {crypto.name} ({crypto.symbol})
-                  </MenuItem>
-                ))}
-              </Select>
-              {errors.cryptoSymbol && (
-                <FormHelperText>{errors.cryptoSymbol}</FormHelperText>
+            <Autocomplete
+              id="crypto-select"
+              options={cryptoOptions}
+              getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+              value={selectedCrypto}
+              onChange={handleCryptoChange}
+              inputValue={inputValue}
+              onInputChange={(event, newInputValue) => {
+                setInputValue(newInputValue);
+              }}
+              filterOptions={filterOptions}
+              isOptionEqualToValue={(option, value) => option.symbol === value.symbol}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Criptovaluta"
+                  error={!!errors.cryptoSymbol}
+                  helperText={errors.cryptoSymbol}
+                  required
+                />
               )}
-            </FormControl>
+            />
           </Grid>
           
           <Grid item xs={12} sm={6}>

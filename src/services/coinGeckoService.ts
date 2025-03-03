@@ -63,31 +63,67 @@ export class CoinGeckoService {
   }
 
   /**
-   * Recupera la lista delle prime N criptovalute per capitalizzazione di mercato
-   * @param count - Numero di criptovalute da recuperare (default: 100)
-   * @returns Lista delle criptovalute con i loro dati di mercato
+   * Recupera tutte le criptovalute disponibili da CoinGecko tramite paginazione
+   * @param maxCoins - Numero massimo di criptovalute da recuperare (0 per tutte)
+   * @returns Lista completa delle criptovalute con i loro dati di mercato
    */
-  static async getTopCoins(count: number = 100): Promise<Partial<ICrypto>[]> {
+  static async getTopCoins(maxCoins: number = 0): Promise<Partial<ICrypto>[]> {
+    const perPage = 250; // Massimo consentito da CoinGecko per richiesta
+    let page = 1;
+    let allCoins: Partial<ICrypto>[] = [];
+    let hasMoreData = true;
+    
     try {
-      const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
-        headers: this.getHeaders(),
-        params: {
-          vs_currency: 'usd',
-          order: 'market_cap_desc',
-          per_page: count,
-          page: 1,
-          sparkline: false
+      // Continua a recuperare le pagine finché ci sono dati disponibili
+      // o fino a raggiungere il limite massimo se specificato
+      while (hasMoreData && (maxCoins === 0 || allCoins.length < maxCoins)) {
+        console.log(`Recupero pagina ${page} di criptovalute...`);
+        
+        const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+          headers: this.getHeaders(),
+          params: {
+            vs_currency: 'usd',
+            order: 'market_cap_desc',
+            per_page: perPage,
+            page: page,
+            sparkline: false
+          }
+        });
+        
+        // Se non ci sono più risultati, interrompi il ciclo
+        if (response.data.length === 0) {
+          hasMoreData = false;
+          break;
         }
-      });
+        
+        // Mappa i dati e aggiungili all'array completo
+        const pageCoins = response.data.map((coin: any) => ({
+          symbol: coin.symbol.toUpperCase(),
+          name: coin.name,
+          currentPrice: coin.current_price,
+          priceChangePercentage24h: coin.price_change_percentage_24h,
+          marketCap: coin.market_cap,
+          lastUpdated: new Date()
+        }));
+        
+        allCoins = [...allCoins, ...pageCoins];
+        
+        // Incrementa il numero di pagina per la prossima iterazione
+        page++;
+        
+        // Aggiungi un breve ritardo per evitare di superare i limiti di rate dell'API
+        // specialmente per chiamate senza API key
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      }
       
-      return response.data.map((coin: any) => ({
-        symbol: coin.symbol.toUpperCase(),
-        name: coin.name,
-        currentPrice: coin.current_price,
-        priceChangePercentage24h: coin.price_change_percentage_24h,
-        marketCap: coin.market_cap,
-        lastUpdated: new Date()
-      }));
+      // Se è stato specificato un limite massimo, taglia l'array
+      if (maxCoins > 0 && allCoins.length > maxCoins) {
+        allCoins = allCoins.slice(0, maxCoins);
+      }
+      
+      console.log(`Recuperate ${allCoins.length} criptovalute in totale.`);
+      return allCoins;
+      
     } catch (error) {
       console.error('Errore nel recupero lista criptovalute:', error);
       throw error;
