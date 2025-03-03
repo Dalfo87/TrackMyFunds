@@ -1,0 +1,181 @@
+// client/src/pages/Transactions.tsx
+
+import React, { useState, useEffect } from 'react';
+import { 
+  Grid, Paper, Typography, Button, Box, CircularProgress, 
+  Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions 
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import { transactionApi, cryptoApi } from '../services/api';
+import TransactionsList from '../components/transactions/TransactionsList';
+import TransactionForm from '../components/transactions/TransactionForm';
+import AirdropForm from '../components/transactions/AirdropForm';
+
+const Transactions: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [cryptos, setCryptos] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState(0);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [dialogType, setDialogType] = useState<'transaction' | 'airdrop'>('transaction');
+
+  // Carica i dati all'avvio della pagina
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Funzione per recuperare dati di transazioni e criptovalute
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch in parallelo per migliorare le performance
+      const [transactionsResponse, cryptosResponse] = await Promise.all([
+        transactionApi.getAll(),
+        cryptoApi.getAll()
+      ]);
+
+      setTransactions(transactionsResponse.data);
+      setCryptos(cryptosResponse.data);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Errore nel caricamento dei dati delle transazioni:', error);
+      setError('Errore nel caricamento dei dati. Riprova più tardi.');
+      setLoading(false);
+    }
+  };
+
+  // Gestisce il cambio di tab
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  // Apre il dialog per aggiungere una nuova transazione
+  const handleOpenTransactionDialog = () => {
+    setDialogType('transaction');
+    setOpenDialog(true);
+  };
+
+  // Apre il dialog per registrare un airdrop
+  const handleOpenAirdropDialog = () => {
+    setDialogType('airdrop');
+    setOpenDialog(true);
+  };
+
+  // Chiude il dialog
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+  };
+
+  // Aggiunge una nuova transazione
+  const handleAddTransaction = async (transactionData: any) => {
+    try {
+      await transactionApi.add(transactionData);
+      handleCloseDialog();
+      fetchData(); // Ricarica i dati
+    } catch (error) {
+      console.error('Errore nell\'aggiunta della transazione:', error);
+      setError('Errore nell\'aggiunta della transazione. Riprova più tardi.');
+    }
+  };
+
+  // Registra un nuovo airdrop
+  const handleAddAirdrop = async (airdropData: any) => {
+    try {
+      await transactionApi.recordAirdrop(airdropData);
+      handleCloseDialog();
+      fetchData(); // Ricarica i dati
+    } catch (error) {
+      console.error('Errore nella registrazione dell\'airdrop:', error);
+      setError('Errore nella registrazione dell\'airdrop. Riprova più tardi.');
+    }
+  };
+
+  if (loading && transactions.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h5">Transazioni</Typography>
+          <Box>
+            <Button 
+              variant="contained" 
+              startIcon={<AddIcon />}
+              onClick={handleOpenTransactionDialog}
+              sx={{ mr: 1 }}
+            >
+              Nuova Transazione
+            </Button>
+            <Button 
+              variant="outlined" 
+              startIcon={<AddIcon />}
+              onClick={handleOpenAirdropDialog}
+            >
+              Registra Airdrop
+            </Button>
+          </Box>
+        </Box>
+        
+        {error && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {error}
+          </Typography>
+        )}
+        
+        <Paper sx={{ width: '100%' }}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs value={tabValue} onChange={handleTabChange}>
+              <Tab label="Tutte le Transazioni" />
+              <Tab label="Acquisti" />
+              <Tab label="Vendite" />
+              <Tab label="Airdrop" />
+            </Tabs>
+          </Box>
+          
+          <Box sx={{ p: 2 }}>
+            <TransactionsList 
+              transactions={transactions} 
+              tabValue={tabValue} 
+              onRefresh={fetchData}
+            />
+          </Box>
+        </Paper>
+      </Grid>
+      
+      {/* Dialog per aggiungere transazioni o airdrop */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {dialogType === 'transaction' ? 'Aggiungi Transazione' : 'Registra Airdrop'}
+        </DialogTitle>
+        <DialogContent>
+          {dialogType === 'transaction' ? (
+            <TransactionForm 
+              cryptos={cryptos} 
+              onSubmit={handleAddTransaction} 
+            />
+          ) : (
+            <AirdropForm 
+              cryptos={cryptos} 
+              onSubmit={handleAddAirdrop} 
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Annulla</Button>
+        </DialogActions>
+      </Dialog>
+    </Grid>
+  );
+};
+
+export default Transactions;
