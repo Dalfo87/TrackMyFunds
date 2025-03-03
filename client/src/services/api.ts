@@ -18,7 +18,8 @@ export const cryptoApi = {
   getAll: () => api.get('/cryptos'),
   getBySymbol: (symbol: string) => api.get(`/cryptos/${symbol}`),
   search: (query: string) => api.get(`/cryptos/search?query=${query}`),
-  triggerUpdate: () => api.post('/cryptos/trigger-update')
+  triggerUpdate: () => api.post('/cryptos/trigger-update'),
+  refreshAll: () => api.post('/cryptos/refresh-all')
 };
 
 // API per le transazioni
@@ -48,9 +49,16 @@ export const analyticsApi = {
     api.get(`/analytics/portfolio/historical?period=${period}`)
 };
 
+// API per le impostazioni
+export const settingsApi = {
+  getSettings: () => api.get('/settings'),
+  updateSettings: (data: any) => api.put('/settings', data)
+};
+
 export default {
   crypto: cryptoApi,
   transaction: transactionApi,
   portfolio: portfolioApi,
-  analytics: analyticsApi
+  analytics: analyticsApi,
+  settings: settingsApi
 };

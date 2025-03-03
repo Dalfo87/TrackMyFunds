@@ -12,7 +12,7 @@ import Dashboard from './pages/Dashboard';
 //import Portfolio from './pages/Portfolio';
 import Transactions from './pages/Transactions';
 //import Analytics from './pages/Analytics';
-//import Settings from './pages/Settings';
+import Settings from './pages/Settings';
 
 // Tema dell'applicazione
 const theme = createTheme({
@@ -40,6 +40,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/settings" element={<Settings />}  />
           </Routes>
         </Layout>
       </Router>
