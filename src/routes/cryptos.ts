@@ -116,12 +116,13 @@ const deleteCrypto: RequestHandler = async (req, res) => {
 
 // Registra le route con le funzioni nominate
 router.get('/', getAllCryptos);
-router.get('/:symbol', getCryptoBySymbol);
 router.post('/', addCrypto);
+router.post('/update-prices', CryptoController.updateAllCryptoPrices);
+router.get('/search', CryptoController.searchCrypto);
+router.post('/refresh-all', CryptoController.refreshAllCryptos);
+router.get('/:symbol', getCryptoBySymbol);
+router.post('/update/:coinGeckoId', CryptoController.updateCryptoByCoinGeckoId);
 router.put('/:symbol', updateCrypto);
 router.delete('/:symbol', deleteCrypto);
-router.post('/update-prices', CryptoController.updateAllCryptoPrices);
-router.post('/update/:coinGeckoId', CryptoController.updateCryptoByCoinGeckoId);
-router.get('/search', CryptoController.searchCrypto);
 
 export default router;

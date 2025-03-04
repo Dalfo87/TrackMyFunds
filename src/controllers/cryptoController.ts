@@ -9,6 +9,7 @@ import logger from '../utils/logger';
  * Controller per gestire le operazioni relative alle criptovalute
  */
 export class CryptoController {
+  
   /**
    * Aggiorna le informazioni di tutte le criptovalute nel database
    */
@@ -73,6 +74,130 @@ export class CryptoController {
     }
   }
 
+// /**
+//  * Aggiorna solo i prezzi delle criptovalute presenti nel portafoglio dell'utente
+//  */
+// static async updatePortfolioCryptoPrices(req: Request, res: Response): Promise<void> {
+//   try {
+//     logger.info('Avvio aggiornamento prezzi delle criptovalute nel portafoglio...');
+    
+//     // Recupera il portafoglio dell'utente
+//     const portfolio = await Portfolio.findOne({ user: 'default_user' });
+    
+//     if (!portfolio || portfolio.assets.length === 0) {
+//       logger.info('Nessuna criptovaluta nel portafoglio da aggiornare');
+//       res.json({
+//         success: true,
+//         message: 'Nessuna criptovaluta nel portafoglio da aggiornare'
+//       });
+//       return;
+//     }
+    
+//     // Estrai i simboli delle criptovalute dal portafoglio
+//     const portfolioSymbols = portfolio.assets.map(asset => asset.cryptoSymbol);
+//     logger.info(`Criptovalute nel portafoglio: ${portfolioSymbols.join(', ')}`);
+    
+//     // Recupera le criptovalute dal database
+//     const cryptosToUpdate = await Crypto.find({ symbol: { $in: portfolioSymbols } });
+    
+//     if (cryptosToUpdate.length === 0) {
+//       logger.info('Nessuna criptovaluta trovata nel database da aggiornare');
+//       res.json({
+//         success: true,
+//         message: 'Nessuna criptovaluta trovata nel database da aggiornare'
+//       });
+//       return;
+//     }
+    
+//     logger.info(`Trovate ${cryptosToUpdate.length} criptovalute da aggiornare`);
+    
+//     // Prepara un array di richieste per recuperare i prezzi aggiornati
+//     const topCoins = await CoinGeckoService.getTopCoins(250); // Recupera le prime 250 per avere più probabilità di trovare le nostre
+//     const topCoinsMap = new Map(topCoins.map(coin => [coin.symbol.toUpperCase(), coin]));
+    
+//     let updated = 0;
+//     let errors = 0;
+    
+//     // Aggiorna ogni criptovaluta
+//     for (const crypto of cryptosToUpdate) {
+//       try {
+//         const coinData = topCoinsMap.get(crypto.symbol.toUpperCase());
+        
+//         if (coinData) {
+//           await Crypto.updateOne(
+//             { symbol: crypto.symbol },
+//             { 
+//               currentPrice: coinData.currentPrice ?? 0,
+//               priceChangePercentage24h: coinData.priceChangePercentage24h,
+//               marketCap: coinData.marketCap,
+//               lastUpdated: new Date()
+//             }
+//           );
+          
+//           updated++;
+//           logger.info(`Aggiornata ${crypto.symbol} a $${coinData.currentPrice}`);
+//         } else {
+//           // Se non troviamo la cripto nell'elenco delle top, proviamo a recuperarla direttamente
+//           try {
+//             // Poiché non abbiamo l'ID CoinGecko ma solo il simbolo, questa è una soluzione semplificata
+//             // In un'implementazione completa, dovresti mappare i simboli agli ID CoinGecko
+//             logger.info(`${crypto.symbol} non trovata nella top 250, provo ricerca diretta...`);
+//             const searchResults = await CoinGeckoService.searchCoins(crypto.symbol);
+            
+//             if (searchResults.length > 0) {
+//               // Cerchiamo la corrispondenza esatta per simbolo
+//               const exactMatch = searchResults.find(result => 
+//                 result.symbol.toUpperCase() === crypto.symbol.toUpperCase()
+//               );
+              
+//               if (exactMatch) {
+//                 const coinDetails = await CoinGeckoService.getCoinPrice(exactMatch.id);
+//                 await Crypto.updateOne(
+//                   { symbol: crypto.symbol },
+//                   { 
+//                     currentPrice: coinDetails.currentPrice ?? 0,
+//                     priceChangePercentage24h: coinDetails.priceChangePercentage24h,
+//                     marketCap: coinDetails.marketCap,
+//                     lastUpdated: new Date()
+//                   }
+//                 );
+//                 updated++;
+//                 logger.info(`Aggiornata ${crypto.symbol} a $${coinDetails.currentPrice} (via ricerca)`);
+//               } else {
+//                 logger.warn(`Nessuna corrispondenza esatta per ${crypto.symbol}`);
+//                 errors++;
+//               }
+//             } else {
+//               logger.warn(`Nessun risultato per ${crypto.symbol}`);
+//               errors++;
+//             }
+//           } catch (searchError) {
+//             logger.error(`Errore nella ricerca di ${crypto.symbol}:`, searchError);
+//             errors++;
+//           }
+//         }
+//       } catch (error) {
+//         logger.error(`Errore nell'aggiornamento di ${crypto.symbol}:`, error);
+//         errors++;
+//       }
+//     }
+    
+//     logger.info(`Aggiornamento completato: ${updated} aggiornate, ${errors} errori`);
+    
+//     res.json({
+//       success: true,
+//       message: `Prezzi aggiornati con successo: ${updated} aggiornati, ${errors} errori`
+//     });
+//   } catch (error) {
+//     logger.error('Errore nell\'aggiornamento dei prezzi del portafoglio:', error);
+    
+//     res.status(500).json({
+//       success: false,
+//       message: 'Errore nell\'aggiornamento dei prezzi delle criptovalute',
+//       error: error instanceof Error ? error.message : String(error)
+//     });
+//   }
+// }
   /**
    * Aggiorna le informazioni di una specifica criptovaluta tramite ID CoinGecko
    */
