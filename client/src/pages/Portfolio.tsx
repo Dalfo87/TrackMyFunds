@@ -59,7 +59,7 @@ const Portfolio: React.FC = () => {
     try {
       setLoading(true);
       // Utilizza l'endpoint per aggiornare solo le criptovalute nel portafoglio
-      await cryptoApi.triggerUpdatePortfolio();
+      await cryptoApi.triggerUpdate();
       await fetchPortfolioData();
     } catch (error) {
       console.error('Errore nell\'aggiornamento dei prezzi:', error);

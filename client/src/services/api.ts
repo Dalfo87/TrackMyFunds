@@ -18,7 +18,7 @@ export const cryptoApi = {
   getAll: () => api.get('/cryptos'),
   getBySymbol: (symbol: string) => api.get(`/cryptos/${symbol}`),
   search: (query: string) => api.get(`/cryptos/search?query=${query}`),
-  triggerUpdate: () => api.post('/cryptos/trigger-update'),
+  triggerUpdate: () => api.post('/cryptos/update-prices'),
   refreshAll: () => api.post('/cryptos/refresh-all')
 };
 
@@ -55,10 +55,13 @@ export const settingsApi = {
   updateSettings: (data: any) => api.put('/settings', data)
 };
 
-export default {
+// Crea un oggetto con tutti i servizi API
+const apiServices = {
   crypto: cryptoApi,
   transaction: transactionApi,
   portfolio: portfolioApi,
   analytics: analyticsApi,
   settings: settingsApi
 };
+
+export default apiServices;
