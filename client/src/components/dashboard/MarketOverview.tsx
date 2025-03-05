@@ -18,7 +18,7 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({ data }) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
   };
 

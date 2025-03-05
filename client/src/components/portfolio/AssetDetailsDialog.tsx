@@ -1,6 +1,6 @@
 // client/src/components/portfolio/AssetDetailsDialog.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dialog, 
   DialogTitle, 
@@ -44,15 +44,10 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
     setTabValue(newValue);
   };
   
-  // Carica le transazioni dell'asset quando il dialog è aperto
-  useEffect(() => {
-    if (open && asset) {
-      fetchTransactions();
-    }
-  }, [open, asset]);
-  
   // Funzione per recuperare le transazioni dell'asset
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
+    if (!asset || !asset.cryptoSymbol) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -73,19 +68,31 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
       setError('Errore nel recupero delle transazioni. Riprova più tardi.');
       setLoading(false);
     }
-  };
+  }, [asset]);
   
-  // Funzione per formattare valori monetari
+  // Carica le transazioni dell'asset quando il dialog è aperto
+  useEffect(() => {
+    if (open && asset) {
+      fetchTransactions();
+    }
+  }, [open, asset, fetchTransactions]);
+  
+  // Funzione per formattare valori monetari in dollari
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
   };
   
   // Funzione per formattare le date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT');
+  };
+  
+  // Funzione per formattare le quantità con max 3 decimali
+  const formatQuantity = (value: number) => {
+    return parseFloat(value.toFixed(3)).toString();
   };
   
   // Funzione per ottenere il colore del chip in base al tipo di transazione
@@ -182,7 +189,7 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
               Quantità Posseduta
             </Typography>
             <Typography variant="h6">
-              {asset.quantity.toFixed(8)}
+              {formatQuantity(asset.quantity)}
             </Typography>
           </Grid>
           
@@ -328,7 +335,7 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
                             Quantità:
                           </Typography>
                           <Typography variant="body2">
-                            {tx.quantity}
+                            {formatQuantity(tx.quantity)}
                           </Typography>
                         </Grid>
                         

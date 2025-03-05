@@ -7,7 +7,6 @@ import {
   DialogContent, DialogActions, Button, Box
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-//import { TransactionType } from '../../types/transaction';
 import { transactionApi } from '../../services/api';
 
 interface TransactionsListProps {
@@ -37,13 +36,18 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
   };
 
   // Funzione per formattare le date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT');
+  };
+
+  // Funzione per formattare le quantità con max 3 decimali
+  const formatQuantity = (value: number) => {
+    return parseFloat(value.toFixed(3)).toString();
   };
 
   // Funzione per ottenere il colore del chip in base al tipo di transazione
@@ -128,7 +132,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                   />
                 </TableCell>
                 <TableCell>{tx.cryptoSymbol}</TableCell>
-                <TableCell align="right">{tx.quantity}</TableCell>
+                <TableCell align="right">{formatQuantity(tx.quantity)}</TableCell>
                 <TableCell align="right">
                   {tx.type === 'airdrop' 
                     ? '0' 
@@ -169,7 +173,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
           {selectedTransaction && (
             <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
               <Typography variant="subtitle2">
-                {getTransactionTypeText(selectedTransaction.type)} di {selectedTransaction.quantity} {selectedTransaction.cryptoSymbol}
+                {getTransactionTypeText(selectedTransaction.type)} di {formatQuantity(selectedTransaction.quantity)} {selectedTransaction.cryptoSymbol}
               </Typography>
               <Typography variant="body2">
                 Data: {formatDate(selectedTransaction.date)}

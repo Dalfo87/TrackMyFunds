@@ -48,8 +48,13 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
+  };
+  
+  // Funzione per formattare le quantità con max 3 decimali
+  const formatQuantity = (value: number) => {
+    return parseFloat(value.toFixed(3)).toString();
   };
 
   // Funzione per gestire l'ordinamento
@@ -170,7 +175,7 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
                     )}
                   </Box>
                 </TableCell>
-                <TableCell align="right">{asset.quantity.toFixed(8)}</TableCell>
+                <TableCell align="right">{formatQuantity(asset.quantity)}</TableCell>
                 <TableCell align="right">{formatCurrency(asset.currentPrice)}</TableCell>
                 <TableCell align="right">{formatCurrency(asset.averagePrice)}</TableCell>
                 <TableCell align="right">{formatCurrency(asset.currentValue)}</TableCell>

@@ -1,9 +1,10 @@
 // client/src/components/dashboard/PortfolioSummary.tsx
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, Divider, Grid } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { cryptoApi } from '../../services/api';
 
 interface PortfolioSummaryProps {
   data: {
@@ -14,13 +15,32 @@ interface PortfolioSummaryProps {
   } | null;
 }
 
-// Questo rende esplicito che data potrebbe essere null o
-// potrebbe non avere tutte le proprietà
-
 const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
+  const [euroRate, setEuroRate] = useState<number>(0);
+
+  useEffect(() => {
+    // Recupera il tasso di cambio EUR/USD usando la crypto "euro-coin"
+    const fetchEuroRate = async () => {
+      try {
+        const response = await cryptoApi.getBySymbol('EURC');
+        if (response.data && response.data.currentPrice) {
+          setEuroRate(response.data.currentPrice);
+        } else {
+          // Valore fallback nel caso in cui l'API non restituisca un dato valido
+          setEuroRate(0.91); // Valore approssimativo EUR/USD
+        }
+      } catch (error) {
+        console.error('Errore nel recupero del tasso di cambio EUR/USD:', error);
+        setEuroRate(0.91); // Valore fallback in caso di errore
+      }
+    };
+
+    fetchEuroRate();
+  }, []);
+
   if (!data) return <Typography>Dati non disponibili</Typography>;
 
-  const { totalValue, totalInvestment, totalProfitLoss, totalROI } = data;
+  const { totalValue, totalInvestment, totalProfitLoss } = data;
   const isProfit = (totalProfitLoss ?? 0) >= 0;
 
   // Funzione per formattare i valori monetari
@@ -30,16 +50,20 @@ const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
     }
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
   };
 
-  // Funzione per formattare le percentuali
-  const formatPercentage = (value: number | undefined | null) => {
-    if (value === undefined || value === null) {
-      return '0.00%'; // Valore predefinito quando value è undefined o null
+  // Calcola l'equivalente in euro
+  const calculateEuroEquivalent = (value: number | undefined | null) => {
+    if (value === undefined || value === null || euroRate === 0) {
+      return '0.00 €';
     }
-    return `${value.toFixed(2)}%`;
+    const euroValue = value * euroRate;
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(euroValue);
   };
 
   return (
@@ -89,7 +113,7 @@ const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
         <Grid item xs={12}>
           <Box 
             sx={{ 
-              bgcolor: isProfit ? 'success.main' : 'error.main',
+              bgcolor: 'info.main',
               color: 'white',
               p: 1.5,
               borderRadius: 1,
@@ -98,7 +122,7 @@ const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
             }}
           >
             <Typography variant="h6">
-              ROI: {formatPercentage(totalROI)}
+              Eq. in Euro: {calculateEuroEquivalent(totalValue)}
             </Typography>
           </Box>
         </Grid>

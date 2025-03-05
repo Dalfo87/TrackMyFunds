@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
-  Button, Grid, Box, FormHelperText, Typography,
+  Button, Grid, Box, Typography,
   Autocomplete
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -71,27 +71,65 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
     
     if (!name) return;
     
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Se il nome è quantity, formatta il valore a max 3 decimali
+    if (name === 'quantity') {
+      const numValue = parseFloat(value as string);
+      if (!isNaN(numValue)) {
+        const formattedValue = parseFloat(numValue.toFixed(3)).toString();
+        setFormData(prev => ({
+          ...prev,
+          [name]: formattedValue
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value as string
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value as string
+      }));
+    }
     
     // Se non è un airdrop, gestisci i calcoli automatici dei valori
     if (!isAirdropType && (name === 'quantity' || name === 'pricePerUnit' || name === 'totalAmount')) {
-      const quantity = name === 'quantity' ? parseFloat(value as string) : parseFloat(formData.quantity);
-      const pricePerUnit = name === 'pricePerUnit' ? parseFloat(value as string) : parseFloat(formData.pricePerUnit);
-      const totalAmount = name === 'totalAmount' ? parseFloat(value as string) : parseFloat(formData.totalAmount);
+      let quantity: number = 0;
+      let pricePerUnit: number = 0;
+      let totalAmount: number = 0;
       
-      if (!isNaN(quantity) && !isNaN(pricePerUnit) && name !== 'totalAmount') {
-        setFormData(prev => ({
-          ...prev,
-          totalAmount: (quantity * pricePerUnit).toFixed(2)
-        }));
-      } else if (!isNaN(quantity) && !isNaN(totalAmount) && name === 'totalAmount') {
-        setFormData(prev => ({
-          ...prev,
-          pricePerUnit: quantity > 0 ? (totalAmount / quantity).toFixed(2) : prev.pricePerUnit
-        }));
+      if (name === 'quantity') {
+        quantity = parseFloat(value as string);
+        quantity = !isNaN(quantity) ? parseFloat(quantity.toFixed(3)) : 0;
+        pricePerUnit = parseFloat(formData.pricePerUnit);
+        totalAmount = quantity * pricePerUnit;
+        if (!isNaN(totalAmount)) {
+          setFormData(prev => ({
+            ...prev,
+            totalAmount: totalAmount.toFixed(2)
+          }));
+        }
+      } else if (name === 'pricePerUnit') {
+        quantity = parseFloat(formData.quantity);
+        pricePerUnit = parseFloat(value as string);
+        totalAmount = quantity * pricePerUnit;
+        if (!isNaN(totalAmount)) {
+          setFormData(prev => ({
+            ...prev,
+            totalAmount: totalAmount.toFixed(2)
+          }));
+        }
+      } else { // totalAmount
+        quantity = parseFloat(formData.quantity);
+        totalAmount = parseFloat(value as string);
+        if (!isNaN(quantity) && !isNaN(totalAmount) && quantity > 0) {
+          pricePerUnit = totalAmount / quantity;
+          setFormData(prev => ({
+            ...prev,
+            pricePerUnit: pricePerUnit.toFixed(2)
+          }));
+        }
       }
     }
     
@@ -248,9 +286,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               type="number"
               value={formData.quantity}
               onChange={handleChange}
-              inputProps={{ step: 'any' }}
+              inputProps={{ step: '0.001' }}
               error={!!errors.quantity}
-              helperText={errors.quantity}
+              helperText={errors.quantity || "Massimo 3 decimali"}
             />
           </Grid>
           

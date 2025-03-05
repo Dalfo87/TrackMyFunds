@@ -19,7 +19,7 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
   const theme = useTheme();
 
   // Colori per il grafico a torta
-  const COLORS = [
+  const colors = useMemo(() => [
     theme.palette.primary.main,
     theme.palette.secondary.main,
     theme.palette.success.main,
@@ -34,7 +34,9 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
     '#d0ed57',
     '#83a6ed',
     '#8884d8',
-  ];
+  ], [theme.palette.primary.main, theme.palette.secondary.main, 
+      theme.palette.success.main, theme.palette.error.main,
+      theme.palette.warning.main, theme.palette.info.main]);
 
   // Calcola i dati per il grafico a torta
   const pieData = useMemo(() => {
@@ -46,12 +48,12 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
       name: asset.cryptoSymbol,
       value: asset.currentValue,
       percentage: (asset.currentValue / totalValue) * 100,
-      color: COLORS[index % COLORS.length]
+      color: colors[index % colors.length]
     }));
     
     // Ordina per valore decrescente
     return data.sort((a, b) => b.value - a.value);
-  }, [assets, COLORS]);
+  }, [assets, colors]);
 
   // Calcola i dati per allocazione per categoria
   const categoryData = useMemo(() => {
@@ -74,15 +76,15 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
       name: category,
       value,
       percentage: (value / totalValue) * 100,
-      color: COLORS[index % COLORS.length]
+      color: colors[index % colors.length]
     })).sort((a, b) => b.value - a.value);
-  }, [assets, COLORS]);
+  }, [assets, colors]);
 
   // Funzione per formattare i valori monetari
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'USD'
     }).format(value);
   };
 

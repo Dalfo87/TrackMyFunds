@@ -1,6 +1,6 @@
 // client/src/components/portfolio/PortfolioPerformance.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -15,6 +15,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { cryptoApi } from '../../services/api';
 
 interface PortfolioPerformanceProps {
   data: any;
@@ -23,6 +24,27 @@ interface PortfolioPerformanceProps {
 const PortfolioPerformance: React.FC<PortfolioPerformanceProps> = ({ data }) => {
   const [tabValue, setTabValue] = useState(0);
   const [timeRange, setTimeRange] = useState('1y');
+  const [euroRate, setEuroRate] = useState<number>(0);
+
+  useEffect(() => {
+    // Recupera il tasso di cambio EUR/USD usando la crypto "euro-coin"
+    const fetchEuroRate = async () => {
+      try {
+        const response = await cryptoApi.getBySymbol('EURC');
+        if (response.data && response.data.currentPrice) {
+          setEuroRate(response.data.currentPrice);
+        } else {
+          // Valore fallback nel caso in cui l'API non restituisca un dato valido
+          setEuroRate(0.91); // Valore approssimativo EUR/USD
+        }
+      } catch (error) {
+        console.error('Errore nel recupero del tasso di cambio EUR/USD:', error);
+        setEuroRate(0.91); // Valore fallback in caso di errore
+      }
+    };
+
+    fetchEuroRate();
+  }, []);
 
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -60,8 +82,19 @@ const PortfolioPerformance: React.FC<PortfolioPerformanceProps> = ({ data }) => 
   const totalROI = totalInvestment > 0 ? (totalProfitLoss / totalInvestment) * 100 : 0;
   const isProfit = totalProfitLoss >= 0;
 
+  // Calcola l'equivalente in euro
+  const euroEquivalent = currentValue * euroRate;
+
   // Funzione per formattare valori monetari
   const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(value);
+  };
+
+  // Funzione per formattare valori in euro
+  const formatEuro = (value: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
@@ -200,6 +233,9 @@ const PortfolioPerformance: React.FC<PortfolioPerformanceProps> = ({ data }) => 
             </Typography>
             <Typography variant="h4">
               {formatCurrency(currentValue)}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              {formatEuro(euroEquivalent)} (EUR)
             </Typography>
           </CardContent>
         </Card>
