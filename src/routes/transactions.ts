@@ -12,6 +12,94 @@ type RequestHandler = (
   next?: express.NextFunction
 ) => Promise<any> | any;
 
+/**
+ * Ricalcola l'intero portafoglio basandosi su tutte le transazioni
+ * Questa è una soluzione più robusta rispetto a cercare di invertire l'effetto di una singola transazione
+ */
+async function recalculatePortfolio(user: string) {
+  try {
+    // Ottieni tutte le transazioni dell'utente, ordinate per data
+    const transactions = await Transaction.find({ user }).sort({ date: 1 });
+    
+    // Crea un nuovo portafoglio vuoto (o recupera quello esistente)
+    let portfolio = await Portfolio.findOne({ user });
+    if (!portfolio) {
+      portfolio = new Portfolio({
+        user,
+        assets: [],
+        lastUpdated: new Date()
+      });
+    } else {
+      // Resetta gli asset se il portafoglio esiste già
+      portfolio.assets = [];
+    }
+    
+    // Elabora ogni transazione per ricostruire il portafoglio
+    for (const tx of transactions) {
+      // Trova l'asset nel portafoglio
+      const assetIndex = portfolio.assets.findIndex(
+        asset => asset.cryptoSymbol === tx.cryptoSymbol
+      );
+      
+      if (tx.type === TransactionType.BUY || tx.type === TransactionType.AIRDROP) {
+        // Gestione dell'acquisto o airdrop
+        if (assetIndex === -1) {
+          // Se l'asset non esiste nel portafoglio, aggiungilo
+          portfolio.assets.push({
+            cryptoSymbol: tx.cryptoSymbol,
+            quantity: tx.quantity,
+            averagePrice: tx.type === TransactionType.AIRDROP ? 0 : tx.pricePerUnit,
+            category: tx.category
+          });
+        } else {
+          // Se l'asset esiste, aggiorna quantità e prezzo medio
+          const asset = portfolio.assets[assetIndex];
+          
+          if (tx.type === TransactionType.AIRDROP) {
+            // Per gli airdrop, aumentiamo la quantità ma calcoliamo il nuovo prezzo medio
+            if (asset.quantity === 0) {
+              asset.averagePrice = 0;
+            } else {
+              const totalValue = asset.quantity * asset.averagePrice;
+              asset.averagePrice = totalValue / (asset.quantity + tx.quantity);
+            }
+            asset.quantity += tx.quantity;
+          } else {
+            // Per gli acquisti normali, aggiorniamo il prezzo medio pesato
+            const totalValue = asset.quantity * asset.averagePrice + tx.quantity * tx.pricePerUnit;
+            const newQuantity = asset.quantity + tx.quantity;
+            asset.averagePrice = totalValue / newQuantity;
+            asset.quantity = newQuantity;
+          }
+          
+          if (tx.category) asset.category = tx.category;
+        }
+      } else if (tx.type === TransactionType.SELL) {
+        // Gestione della vendita
+        if (assetIndex !== -1) {
+          const asset = portfolio.assets[assetIndex];
+          if (asset.quantity >= tx.quantity) {
+            // Riduci la quantità, ma mantieni lo stesso prezzo medio
+            asset.quantity -= tx.quantity;
+            
+            // Se la quantità è 0, rimuovi l'asset dal portafoglio
+            if (asset.quantity === 0) {
+              portfolio.assets.splice(assetIndex, 1);
+            }
+          }
+        }
+      }
+    }
+    
+    portfolio.lastUpdated = new Date();
+    await portfolio.save();
+    return portfolio;
+  } catch (error) {
+    console.error('Errore nel ricalcolo del portafoglio:', error);
+    throw error;
+  }
+}
+
 // Funzione per recuperare tutte le transazioni
 const getAllTransactions: RequestHandler = async (req, res) => {
   try {
@@ -73,15 +161,8 @@ const addTransaction: RequestHandler = async (req, res) => {
     
     await newTransaction.save();
     
-    // Aggiorna il portafoglio
-    await updatePortfolio(
-      'default_user', 
-      cryptoSymbol.toUpperCase(), 
-      type, 
-      quantity, 
-      pricePerUnit,
-      category
-    );
+    // Ricalcola l'intero portafoglio invece di aggiornarlo incrementalmente
+    await recalculatePortfolio('default_user');
     
     res.status(201).json(newTransaction);
   } catch (error) {
@@ -89,8 +170,6 @@ const addTransaction: RequestHandler = async (req, res) => {
     res.status(500).json({ message: 'Errore nell\'aggiunta della transazione' });
   }
 };
-
-// Aggiungere alla sezione delle route nel file transactions.ts
 
 // Funzione per registrare un airdrop
 const recordAirdrop: RequestHandler = async (req, res) => {
@@ -126,15 +205,8 @@ const recordAirdrop: RequestHandler = async (req, res) => {
     
     await newAirdrop.save();
     
-    // Aggiorna il portafoglio
-    await updatePortfolio(
-      'default_user',
-      cryptoSymbol.toUpperCase(),
-      TransactionType.BUY, // Trattiamo l'airdrop come un acquisto per l'aggiornamento del portafoglio
-      quantity,
-      0,  // Prezzo zero
-      category
-    );
+    // Ricalcola l'intero portafoglio
+    await recalculatePortfolio('default_user');
     
     res.status(201).json({
       success: true,
@@ -151,9 +223,6 @@ const recordAirdrop: RequestHandler = async (req, res) => {
   }
 };
 
-// Aggiungi la route
-router.post('/airdrop', recordAirdrop);
-
 // Funzione per aggiornare una transazione esistente
 const updateTransaction: RequestHandler = async (req, res) => {
   try {
@@ -162,16 +231,6 @@ const updateTransaction: RequestHandler = async (req, res) => {
     if (!originalTransaction) {
       return res.status(404).json({ message: 'Transazione non trovata' });
     }
-    
-    // Annulla l'effetto della transazione originale sul portafoglio
-    await updatePortfolio(
-      'default_user',
-      originalTransaction.cryptoSymbol,
-      originalTransaction.type === TransactionType.BUY ? TransactionType.SELL : TransactionType.BUY,
-      originalTransaction.quantity,
-      originalTransaction.pricePerUnit,
-      originalTransaction.category
-    );
     
     // Aggiorna la transazione
     const { 
@@ -203,15 +262,8 @@ const updateTransaction: RequestHandler = async (req, res) => {
       { new: true }
     );
     
-    // Applica l'effetto della nuova transazione sul portafoglio
-    await updatePortfolio(
-      'default_user',
-      cryptoSymbol.toUpperCase(),
-      type,
-      quantity,
-      pricePerUnit,
-      category
-    );
+    // Ricalcola l'intero portafoglio
+    await recalculatePortfolio('default_user');
     
     res.json(updatedTransaction);
   } catch (error) {
@@ -229,18 +281,11 @@ const deleteTransaction: RequestHandler = async (req, res) => {
       return res.status(404).json({ message: 'Transazione non trovata' });
     }
     
-    // Annulla l'effetto della transazione sul portafoglio
-    await updatePortfolio(
-      'default_user',
-      transaction.cryptoSymbol,
-      transaction.type === TransactionType.BUY ? TransactionType.SELL : TransactionType.BUY,
-      transaction.quantity,
-      transaction.pricePerUnit,
-      transaction.category
-    );
-    
     // Elimina la transazione
     await Transaction.findByIdAndDelete(req.params.id);
+    
+    // Ricalcola l'intero portafoglio
+    await recalculatePortfolio('default_user');
     
     res.json({ message: 'Transazione eliminata con successo' });
   } catch (error) {
@@ -249,89 +294,11 @@ const deleteTransaction: RequestHandler = async (req, res) => {
   }
 };
 
-// Modifica della funzione updatePortfolio in transactions.ts
-
-async function updatePortfolio(
-  user: string,
-  cryptoSymbol: string,
-  type: string,
-  quantity: number,
-  pricePerUnit: number,
-  category?: string
-) {
-  try {
-    // Trova il portafoglio dell'utente
-    let portfolio = await Portfolio.findOne({ user });
-
-    // Se non esiste, creane uno nuovo
-    if (!portfolio) {
-      portfolio = new Portfolio({
-        user,
-        assets: [],
-        lastUpdated: new Date()
-      });
-    }
-
-    // Cerca l'asset nel portafoglio
-    const assetIndex = portfolio.assets.findIndex(
-      asset => asset.cryptoSymbol === cryptoSymbol
-    );
-
-    // Gestione dell'acquisto o airdrop
-    if (type === TransactionType.BUY || type === TransactionType.AIRDROP) {
-      if (assetIndex === -1) {
-        // Se l'asset non esiste nel portafoglio, aggiungilo
-        portfolio.assets.push({
-          cryptoSymbol,
-          quantity,
-          averagePrice: pricePerUnit, // Per gli airdrop sarà 0
-          category
-        });
-      } else {
-        // Se l'asset esiste, aggiorna quantità e prezzo medio
-        const asset = portfolio.assets[assetIndex];
-        
-        if (type === TransactionType.AIRDROP) {
-          // Per gli airdrop, aumentiamo la quantità ma non alteriamo il prezzo medio
-          // se non ci sono già acquisizioni
-          if (asset.quantity === 0) {
-            asset.averagePrice = 0;
-          } else {
-            // Se ci sono già acquisizioni, l'airdrop abbassa il prezzo medio
-            const totalValue = asset.quantity * asset.averagePrice; // valore attuale
-            asset.averagePrice = totalValue / (asset.quantity + quantity); // nuovo prezzo medio
-          }
-          asset.quantity += quantity;
-        } else {
-          // Per gli acquisti normali, aggiorniamo il prezzo medio pesato
-          const totalValue = asset.quantity * asset.averagePrice + quantity * pricePerUnit;
-          const newQuantity = asset.quantity + quantity;
-          asset.averagePrice = totalValue / newQuantity;
-          asset.quantity = newQuantity;
-        }
-        
-        if (category) asset.category = category;
-      }
-    }
-
-    // Gestione della vendita (invariata)
-    if (type === TransactionType.SELL) {
-      // ... codice esistente per la vendita ...
-    }
-
-    portfolio.lastUpdated = new Date();
-    await portfolio.save();
-    return portfolio;
-  } catch (error) {
-    console.error('Errore nell\'aggiornamento del portafoglio:', error);
-    throw error;
-  }
-}
-
 // Registra le route con le funzioni nominate
 router.get('/', getAllTransactions);
 router.get('/:id', getTransactionById);
 router.post('/', addTransaction);
+router.post('/airdrop', recordAirdrop);
 router.put('/:id', updateTransaction);
 router.delete('/:id', deleteTransaction);
 
