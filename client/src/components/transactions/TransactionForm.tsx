@@ -3,14 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
-  Button, Grid, Box, Typography,
-  Autocomplete
+  Button, Grid, Box, Typography, Autocomplete,
+  Divider, FormHelperText
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/it';
+
+// Enumeration dei metodi di pagamento (deve corrispondere a quello nel backend)
+enum PaymentMethod {
+  BANK_TRANSFER = 'bank_transfer',
+  CREDIT_CARD = 'credit_card',
+  DEBIT_CARD = 'debit_card',
+  CRYPTO = 'crypto',
+  OTHER = 'other'
+}
 
 interface TransactionFormProps {
   cryptos: any[];
@@ -31,14 +40,34 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
     totalAmount: '',
     date: dayjs(),
     notes: '',
-    category: ''
+    category: '',
+    paymentMethod: PaymentMethod.BANK_TRANSFER,
+    paymentCurrency: 'EUR'
   });
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isAirdropType, setIsAirdropType] = useState(false);
+  const [isCryptoPayment, setIsCryptoPayment] = useState(false);
   const [cryptoOptions, setCryptoOptions] = useState<CryptoOption[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption | null>(null);
+
+  // Lista di stablecoin comuni
+  const commonStablecoins = [
+    { value: 'USDT', label: 'Tether (USDT)' },
+    { value: 'USDC', label: 'USD Coin (USDC)' },
+    { value: 'DAI', label: 'Dai (DAI)' },
+    { value: 'BUSD', label: 'Binance USD (BUSD)' },
+    { value: 'TUSD', label: 'TrueUSD (TUSD)' }
+  ];
+
+  // Lista di valute fiat comuni
+  const commonFiatCurrencies = [
+    { value: 'EUR', label: 'Euro (EUR)' },
+    { value: 'USD', label: 'US Dollar (USD)' },
+    { value: 'GBP', label: 'British Pound (GBP)' },
+    { value: 'CHF', label: 'Swiss Franc (CHF)' }
+  ];
 
   // Prepara le opzioni per l'autocomplete
   useEffect(() => {
@@ -59,12 +88,45 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
       setFormData(prev => ({
         ...prev,
         pricePerUnit: '0',
-        totalAmount: '0'
+        totalAmount: '0',
+        paymentMethod: '' as any, // Rimuovi il metodo di pagamento per airdrop
+        paymentCurrency: '' // Rimuovi la valuta di pagamento per airdrop
       }));
     } else {
       setIsAirdropType(false);
+      // Reimpostare il metodo di pagamento predefinito se prima era un airdrop
+      if (!formData.paymentMethod) {
+        setFormData(prev => ({
+          ...prev,
+          paymentMethod: PaymentMethod.BANK_TRANSFER,
+          paymentCurrency: 'EUR'
+        }));
+      }
     }
   }, [formData.type]);
+
+  // Effetto per gestire il cambiamento del metodo di pagamento
+  useEffect(() => {
+    if (formData.paymentMethod === PaymentMethod.CRYPTO) {
+      setIsCryptoPayment(true);
+      // Imposta USDT come valuta predefinita per pagamenti crypto
+      if (!commonStablecoins.some(sc => sc.value === formData.paymentCurrency)) {
+        setFormData(prev => ({
+          ...prev,
+          paymentCurrency: 'USDT'
+        }));
+      }
+    } else {
+      setIsCryptoPayment(false);
+      // Imposta EUR come valuta predefinita per pagamenti non crypto
+      if (!commonFiatCurrencies.some(fc => fc.value === formData.paymentCurrency)) {
+        setFormData(prev => ({
+          ...prev,
+          paymentCurrency: 'EUR'
+        }));
+      }
+    }
+  }, [formData.paymentMethod]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
@@ -179,6 +241,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
     if (!isAirdropType && (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0)) {
       newErrors.pricePerUnit = 'Inserisci un prezzo valido';
     }
+
+    // Per acquisti, verifica che sia specificato un metodo di pagamento
+    if (formData.type === 'buy' && !formData.paymentMethod) {
+      newErrors.paymentMethod = 'Seleziona un metodo di pagamento';
+    }
+
+    // Per pagamenti crypto, verifica che sia specificata una valuta
+    if (formData.paymentMethod === PaymentMethod.CRYPTO && !formData.paymentCurrency) {
+      newErrors.paymentCurrency = 'Seleziona una valuta crypto';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -231,6 +303,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
         option.symbol.toLowerCase().includes(searchTerm) || 
         option.name.toLowerCase().includes(searchTerm)
     );
+  };
+
+  // Funzione per ottenere l'etichetta del metodo di pagamento
+  const getPaymentMethodLabel = (method: string): string => {
+    switch (method) {
+      case PaymentMethod.BANK_TRANSFER:
+        return 'Bonifico Bancario';
+      case PaymentMethod.CREDIT_CARD:
+        return 'Carta di Credito';
+      case PaymentMethod.DEBIT_CARD:
+        return 'Carta di Debito';
+      case PaymentMethod.CRYPTO:
+        return 'Cryptocurrency/Stablecoin';
+      case PaymentMethod.OTHER:
+        return 'Altro';
+      default:
+        return method;
+    }
   };
 
   return (
@@ -328,6 +418,65 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
               slotProps={{ textField: { fullWidth: true } }}
             />
           </Grid>
+          
+          {/* Sezione con metodo di pagamento, visibile solo per acquisti */}
+          {formData.type === 'buy' && (
+            <>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  Dettagli Pagamento
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth error={!!errors.paymentMethod}>
+                  <InputLabel>Metodo di Pagamento</InputLabel>
+                  <Select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleSelectChange}
+                    label="Metodo di Pagamento"
+                  >
+                    <MenuItem value={PaymentMethod.BANK_TRANSFER}>{getPaymentMethodLabel(PaymentMethod.BANK_TRANSFER)}</MenuItem>
+                    <MenuItem value={PaymentMethod.CREDIT_CARD}>{getPaymentMethodLabel(PaymentMethod.CREDIT_CARD)}</MenuItem>
+                    <MenuItem value={PaymentMethod.DEBIT_CARD}>{getPaymentMethodLabel(PaymentMethod.DEBIT_CARD)}</MenuItem>
+                    <MenuItem value={PaymentMethod.CRYPTO}>{getPaymentMethodLabel(PaymentMethod.CRYPTO)}</MenuItem>
+                    <MenuItem value={PaymentMethod.OTHER}>{getPaymentMethodLabel(PaymentMethod.OTHER)}</MenuItem>
+                  </Select>
+                  {errors.paymentMethod && <FormHelperText>{errors.paymentMethod}</FormHelperText>}
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth error={!!errors.paymentCurrency}>
+                  <InputLabel>Valuta di Pagamento</InputLabel>
+                  <Select
+                    name="paymentCurrency"
+                    value={formData.paymentCurrency}
+                    onChange={handleSelectChange}
+                    label="Valuta di Pagamento"
+                  >
+                    {/* Mostra stablecoin per pagamenti crypto, valute fiat per altri metodi */}
+                    {isCryptoPayment ? 
+                      commonStablecoins.map(stablecoin => (
+                        <MenuItem key={stablecoin.value} value={stablecoin.value}>
+                          {stablecoin.label}
+                        </MenuItem>
+                      ))
+                      :
+                      commonFiatCurrencies.map(fiat => (
+                        <MenuItem key={fiat.value} value={fiat.value}>
+                          {fiat.label}
+                        </MenuItem>
+                      ))
+                    }
+                  </Select>
+                  {errors.paymentCurrency && <FormHelperText>{errors.paymentCurrency}</FormHelperText>}
+                </FormControl>
+              </Grid>
+            </>
+          )}
           
           <Grid item xs={12} sm={12}>
             <TextField

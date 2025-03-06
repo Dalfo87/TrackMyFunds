@@ -11,7 +11,7 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Portfolio from './pages/Portfolio';
 import Transactions from './pages/Transactions';
-//import Analytics from './pages/Analytics';
+import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
 // Tema dell'applicazione
@@ -41,6 +41,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />}  />
           </Routes>
         </Layout>

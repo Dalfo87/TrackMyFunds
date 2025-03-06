@@ -1,5 +1,5 @@
 import express from 'express';
-import Transaction, { ITransaction, TransactionType } from '../models/Transaction';
+import Transaction, { ITransaction, TransactionType, PaymentMethod } from '../models/Transaction';
 import Portfolio from '../models/Portfolio';
 
 // Definisci esplicitamente il router
@@ -139,7 +139,9 @@ const addTransaction: RequestHandler = async (req, res) => {
       fees, 
       notes, 
       date,
-      category 
+      category,
+      paymentMethod,
+      paymentCurrency
     } = req.body;
     
     // Calcola l'importo totale
@@ -156,7 +158,9 @@ const addTransaction: RequestHandler = async (req, res) => {
       fees,
       notes,
       date: date || new Date(),
-      category
+      category,
+      paymentMethod,
+      paymentCurrency: paymentCurrency ? paymentCurrency.toUpperCase() : undefined
     });
     
     await newTransaction.save();
@@ -241,7 +245,9 @@ const updateTransaction: RequestHandler = async (req, res) => {
       fees, 
       notes, 
       date,
-      category 
+      category,
+      paymentMethod,
+      paymentCurrency
     } = req.body;
     
     const totalAmount = quantity * pricePerUnit;
@@ -257,7 +263,9 @@ const updateTransaction: RequestHandler = async (req, res) => {
         fees,
         notes,
         date: date || originalTransaction.date,
-        category
+        category,
+        paymentMethod,
+        paymentCurrency: paymentCurrency ? paymentCurrency.toUpperCase() : undefined
       },
       { new: true }
     );

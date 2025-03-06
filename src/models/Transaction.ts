@@ -7,6 +7,15 @@ export enum TransactionType {
   AIRDROP = 'airdrop'  // Nuovo tipo di transazione
 }
 
+// Definiamo i metodi di pagamento possibili
+export enum PaymentMethod {
+  BANK_TRANSFER = 'bank_transfer',
+  CREDIT_CARD = 'credit_card',
+  DEBIT_CARD = 'debit_card',
+  CRYPTO = 'crypto',
+  OTHER = 'other'
+}
+
 // Interfaccia per il documento Transaction
 export interface ITransaction extends Document {
   user: string;               // ID dell'utente (per uso futuro con autenticazione)
@@ -19,6 +28,10 @@ export interface ITransaction extends Document {
   notes?: string;             // Note aggiuntive
   date: Date;                 // Data della transazione
   category?: string;          // Categoria (es. alto rischio, stabile, lungo termine)
+  
+  // Nuovi campi per gestire la fonte dei fondi
+  paymentMethod?: PaymentMethod; // Metodo di pagamento (bonifico, carta, crypto, ecc.)
+  paymentCurrency?: string;      // Valuta di pagamento (EUR, USD, USDT, USDC, ecc.)
 }
 
 const TransactionSchema: Schema = new Schema({
@@ -69,12 +82,23 @@ const TransactionSchema: Schema = new Schema({
   category: {
     type: String,
     trim: true
+  },
+  
+  // Nuovi campi aggiunti per gestire la fonte dei fondi
+  paymentMethod: {
+    type: String,
+    enum: Object.values(PaymentMethod),
+    default: PaymentMethod.BANK_TRANSFER
+  },
+  paymentCurrency: {
+    type: String,
+    default: 'EUR',
+    uppercase: true,
+    trim: true
   }
 }, {
   timestamps: true
 });
-
-// Aggiunta nel modello TransactionSchema, nella sezione pre-save
 
 // Middleware pre-save per calcolare automaticamente il totale
 TransactionSchema.pre('save', function(next) {
@@ -87,6 +111,20 @@ TransactionSchema.pre('save', function(next) {
   if (this.type === TransactionType.AIRDROP) {
     this.pricePerUnit = 0;
     this.totalAmount = 0;
+    
+    // Per gli airdrop, non è rilevante il metodo di pagamento
+    this.paymentMethod = undefined;
+    this.paymentCurrency = undefined;
+  }
+  
+  // Se il metodo di pagamento è crypto, assicuriamoci che sia specificata una valuta crypto
+  if (this.paymentMethod === PaymentMethod.CRYPTO && !this.paymentCurrency) {
+    this.paymentCurrency = 'USDT'; // Default a USDT se non specificato
+  }
+
+  // Se il metodo di pagamento non è crypto, impostiamo la valuta di default se non specificata
+  if (this.paymentMethod !== PaymentMethod.CRYPTO && !this.paymentCurrency) {
+    this.paymentCurrency = 'EUR';
   }
   
   next();

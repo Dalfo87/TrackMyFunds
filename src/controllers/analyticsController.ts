@@ -1,7 +1,7 @@
 // src/controllers/analyticsController.ts
 
 import express from 'express';
-import Transaction, { TransactionType } from '../models/Transaction';
+import Transaction, { TransactionType, PaymentMethod } from '../models/Transaction';
 import Portfolio from '../models/Portfolio';
 import Crypto from '../models/Crypto';
 
@@ -129,13 +129,11 @@ class AnalyticsController {
     }
   };
   
-  // src/controllers/analyticsController.ts
-
-/**
- * Calcola profitti e perdite realizzati dalle transazioni completate
- * Supporta diversi metodi di calcolo: FIFO, LIFO, e Costo Medio
- */
-static getRealizedProfitLoss: RequestHandler = async (req, res) => {
+  /**
+   * Calcola profitti e perdite realizzati dalle transazioni completate
+   * Supporta diversi metodi di calcolo: FIFO, LIFO, e Costo Medio
+   */
+  static getRealizedProfitLoss: RequestHandler = async (req, res) => {
     try {
       const userId = 'default_user';
       
@@ -172,6 +170,8 @@ static getRealizedProfitLoss: RequestHandler = async (req, res) => {
         price: number;
         date: Date;
         type: string;
+        paymentMethod?: string;
+        paymentCurrency?: string;
       }
       
       interface CryptoTracker {
@@ -215,7 +215,9 @@ static getRealizedProfitLoss: RequestHandler = async (req, res) => {
             quantity: tx.quantity,
             price: tx.pricePerUnit,
             date: tx.date,
-            type: tx.type
+            type: tx.type,
+            paymentMethod: tx.paymentMethod,
+            paymentCurrency: tx.paymentCurrency
           });
           
           tracker.totalAcquired += tx.quantity;
@@ -456,22 +458,22 @@ static getRealizedProfitLoss: RequestHandler = async (req, res) => {
         message: 'Errore nel calcolo del profitto/perdita realizzato',
         error: error instanceof Error ? error.message : String(error)
       });
-      }
-    };
-
-    // Funzione helper per generare descrizioni dei metodi
-    private static getMethodDescription(method: string): string {
-      switch (method) {
-        case 'fifo':
-          return 'First In, First Out: le prime unità acquistate sono le prime ad essere vendute.';
-        case 'lifo':
-          return 'Last In, First Out: le unità acquistate più recentemente sono le prime ad essere vendute.';
-        case 'average':
-          return 'Costo Medio: ogni unità venduta ha lo stesso costo base, calcolato come media di tutti gli acquisti precedenti.';
-        default:
-          return '';
-      }
     }
+  };
+
+  // Funzione helper per generare descrizioni dei metodi
+  private static getMethodDescription(method: string): string {
+    switch (method) {
+      case 'fifo':
+        return 'First In, First Out: le prime unità acquistate sono le prime ad essere vendute.';
+      case 'lifo':
+        return 'Last In, First Out: le unità acquistate più recentemente sono le prime ad essere vendute.';
+      case 'average':
+        return 'Costo Medio: ogni unità venduta ha lo stesso costo base, calcolato come media di tutti gli acquisti precedenti.';
+      default:
+        return '';
+    }
+  }
 
   /**
    * Genera statistiche generali sul portafoglio
@@ -762,6 +764,177 @@ static getRealizedProfitLoss: RequestHandler = async (req, res) => {
       });
     }
   };
+
+  /**
+   * Ottiene statistiche di investimento per metodo di pagamento
+   * Utile per analizzare acquisizioni tramite bonifico vs stablecoin
+   */
+  static getInvestmentByPaymentMethod: RequestHandler = async (req, res) => {
+    try {
+      const userId = 'default_user';
+      
+      // Ottieni tutte le transazioni di acquisto
+      const buyTransactions = await Transaction.find({
+        user: userId,
+        type: TransactionType.BUY
+      }).sort({ date: 1 });
+      
+      if (buyTransactions.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            totalInvestmentByMethod: {},
+            totalInvestmentByMethodAndCurrency: {},
+            totalInvestment: 0,
+            transactionCount: 0
+          }
+        });
+      }
+      
+      // Inizializza i contatori per ogni metodo di pagamento
+      interface PaymentMethodStats {
+        totalAmount: number;
+        transactionCount: number;
+        firstDate: Date | null;
+        lastDate: Date | null;
+        currencies: Record<string, {
+          totalAmount: number;
+          transactionCount: number;
+        }>;
+      }
+      
+      const methodStats: Record<string, PaymentMethodStats> = {};
+      
+      // Inizializza le statistiche per ogni metodo di pagamento
+      const allMethods = Object.values(PaymentMethod);
+      allMethods.forEach(method => {
+        methodStats[method] = {
+          totalAmount: 0,
+          transactionCount: 0,
+          firstDate: null,
+          lastDate: null,
+          currencies: {}
+        };
+      });
+      
+      // Aggiungi un 'metodo' indefinito per le transazioni senza metodo specificato
+      methodStats['undefined'] = {
+        totalAmount: 0,
+        transactionCount: 0,
+        firstDate: null,
+        lastDate: null,
+        currencies: {}
+      };
+      
+      // Calcola le statistiche per ogni metodo di pagamento
+      let totalInvestment = 0;
+      for (const tx of buyTransactions) {
+        const method = tx.paymentMethod || 'undefined';
+        const currency = tx.paymentCurrency || 'undefined';
+        
+        // Aggiorna le statistiche del metodo
+        if (!methodStats[method]) {
+          methodStats[method] = {
+            totalAmount: 0,
+            transactionCount: 0,
+            firstDate: null,
+            lastDate: null,
+            currencies: {}
+          };
+        }
+        
+        methodStats[method].totalAmount += tx.totalAmount;
+        methodStats[method].transactionCount++;
+        
+        // Aggiorna le date
+        if (!methodStats[method].firstDate || tx.date < methodStats[method].firstDate) {
+          methodStats[method].firstDate = tx.date;
+        }
+        if (!methodStats[method].lastDate || tx.date > methodStats[method].lastDate) {
+          methodStats[method].lastDate = tx.date;
+        }
+        
+        // Aggiorna le statistiche della valuta
+        if (!methodStats[method].currencies[currency]) {
+          methodStats[method].currencies[currency] = {
+            totalAmount: 0,
+            transactionCount: 0
+          };
+        }
+        
+        methodStats[method].currencies[currency].totalAmount += tx.totalAmount;
+        methodStats[method].currencies[currency].transactionCount++;
+        
+        // Aggiorna il totale degli investimenti
+        totalInvestment += tx.totalAmount;
+      }
+      
+      // Calcola le percentuali
+      const methodPercentages: Record<string, number> = {};
+      const methodAndCurrencyPercentages: Record<string, Record<string, number>> = {};
+      
+      for (const [method, stats] of Object.entries(methodStats)) {
+        if (totalInvestment > 0) {
+          methodPercentages[method] = (stats.totalAmount / totalInvestment) * 100;
+        } else {
+          methodPercentages[method] = 0;
+        }
+        
+        methodAndCurrencyPercentages[method] = {};
+        
+        for (const [currency, currencyStats] of Object.entries(stats.currencies)) {
+          if (totalInvestment > 0) {
+            methodAndCurrencyPercentages[method][currency] = (currencyStats.totalAmount / totalInvestment) * 100;
+          } else {
+            methodAndCurrencyPercentages[method][currency] = 0;
+          }
+        }
+      }
+      
+      // Prepara il risultato
+      return res.json({
+        success: true,
+        data: {
+          byMethod: methodStats,
+          percentageByMethod: methodPercentages,
+          percentageByMethodAndCurrency: methodAndCurrencyPercentages,
+          totalInvestment,
+          transactionCount: buyTransactions.length,
+          paymentMethods: Object.values(PaymentMethod).map(method => ({
+            id: method,
+            name: getPaymentMethodName(method)
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('Errore nel calcolo delle statistiche per metodo di pagamento:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Errore nel calcolo delle statistiche per metodo di pagamento',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
+}
+
+// Funzione helper per ottenere il nome del metodo di pagamento
+function getPaymentMethodName(method: string): string {
+  switch (method) {
+    case PaymentMethod.BANK_TRANSFER:
+      return 'Bonifico Bancario';
+    case PaymentMethod.CREDIT_CARD:
+      return 'Carta di Credito';
+    case PaymentMethod.DEBIT_CARD:
+      return 'Carta di Debito';
+    case PaymentMethod.CRYPTO:
+      return 'Cryptocurrency/Stablecoin';
+    case PaymentMethod.OTHER:
+      return 'Altro';
+    case 'undefined':
+      return 'Non specificato';
+    default:
+      return method;
+  }
 }
 
 export { AnalyticsController };

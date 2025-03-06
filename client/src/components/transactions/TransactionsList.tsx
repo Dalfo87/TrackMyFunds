@@ -4,10 +4,24 @@ import React, { useState } from 'react';
 import { 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
   Paper, Typography, IconButton, Chip, Dialog, DialogTitle, 
-  DialogContent, DialogActions, Button, Box
+  DialogContent, DialogActions, Button, Box, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import PaymentIcon from '@mui/icons-material/Payment';
+import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { transactionApi } from '../../services/api';
+
+// Enum per i metodi di pagamento (deve corrispondere a quello nel backend)
+enum PaymentMethod {
+  BANK_TRANSFER = 'bank_transfer',
+  CREDIT_CARD = 'credit_card',
+  DEBIT_CARD = 'debit_card',
+  CRYPTO = 'crypto',
+  OTHER = 'other'
+}
 
 interface TransactionsListProps {
   transactions: any[];
@@ -78,6 +92,43 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
     }
   };
 
+  // Funzione per ottenere l'icona e il testo del metodo di pagamento
+  const getPaymentMethodInfo = (method?: string) => {
+    if (!method) {
+      return { icon: null, text: '-' };
+    }
+    
+    switch (method) {
+      case PaymentMethod.BANK_TRANSFER:
+        return { 
+          icon: <AccountBalanceIcon fontSize="small" />, 
+          text: 'Bonifico Bancario' 
+        };
+      case PaymentMethod.CREDIT_CARD:
+        return { 
+          icon: <CreditCardIcon fontSize="small" />, 
+          text: 'Carta di Credito' 
+        };
+      case PaymentMethod.DEBIT_CARD:
+        return { 
+          icon: <PaymentIcon fontSize="small" />, 
+          text: 'Carta di Debito' 
+        };
+      case PaymentMethod.CRYPTO:
+        return { 
+          icon: <CurrencyExchangeIcon fontSize="small" />, 
+          text: 'Cryptocurrency' 
+        };
+      case PaymentMethod.OTHER:
+        return { 
+          icon: <HelpOutlineIcon fontSize="small" />, 
+          text: 'Altro' 
+        };
+      default:
+        return { icon: null, text: method };
+    }
+  };
+
   // Gestisce l'apertura del dialog di conferma per l'eliminazione
   const handleOpenDeleteDialog = (transaction: any) => {
     setSelectedTransaction(transaction);
@@ -116,6 +167,8 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
               <TableCell align="right">Quantità</TableCell>
               <TableCell align="right">Prezzo</TableCell>
               <TableCell align="right">Totale</TableCell>
+              <TableCell align="right">Metodo Pagamento</TableCell>
+              <TableCell align="right">Valuta</TableCell>
               <TableCell align="right">Categoria</TableCell>
               <TableCell align="right">Azioni</TableCell>
             </TableRow>
@@ -144,6 +197,29 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                     ? '0' 
                     : formatCurrency(tx.totalAmount)
                   }
+                </TableCell>
+                <TableCell align="right">
+                  {tx.type === 'buy' ? (
+                    <Tooltip title={getPaymentMethodInfo(tx.paymentMethod).text}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {getPaymentMethodInfo(tx.paymentMethod).icon}
+                      </Box>
+                    </Tooltip>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  {tx.type === 'buy' && tx.paymentCurrency ? (
+                    <Chip 
+                      label={tx.paymentCurrency} 
+                      size="small" 
+                      variant="outlined"
+                      color={tx.paymentMethod === PaymentMethod.CRYPTO ? "secondary" : "default"}
+                    />
+                  ) : (
+                    '-'
+                  )}
                 </TableCell>
                 <TableCell align="right">
                   {tx.category || '-'}
@@ -181,6 +257,12 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
               {selectedTransaction.type !== 'airdrop' && (
                 <Typography variant="body2">
                   Importo: {formatCurrency(selectedTransaction.totalAmount)}
+                </Typography>
+              )}
+              {selectedTransaction.type === 'buy' && selectedTransaction.paymentMethod && (
+                <Typography variant="body2">
+                  Pagamento: {getPaymentMethodInfo(selectedTransaction.paymentMethod).text} 
+                  {selectedTransaction.paymentCurrency && ` (${selectedTransaction.paymentCurrency})`}
                 </Typography>
               )}
             </Box>

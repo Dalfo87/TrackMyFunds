@@ -19,4 +19,7 @@ router.get('/portfolio/realized-profit-loss', AnalyticsController.getRealizedPro
 router.get('/portfolio/stats', AnalyticsController.getPortfolioStats);
 router.get('/portfolio/historical', AnalyticsController.getHistoricalPerformance);
 
+// Nuova rotta per analisi per metodo di pagamento
+router.get('/portfolio/investment-by-payment-method', AnalyticsController.getInvestmentByPaymentMethod);
+
 export default router;

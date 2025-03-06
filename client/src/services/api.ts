@@ -46,7 +46,10 @@ export const analyticsApi = {
     api.get(`/analytics/portfolio/realized-profit-loss?method=${method}`),
   getPortfolioStats: () => api.get('/analytics/portfolio/stats'),
   getHistoricalPerformance: (period: string = '1y') => 
-    api.get(`/analytics/portfolio/historical?period=${period}`)
+    api.get(`/analytics/portfolio/historical?period=${period}`),
+  // Nuovo metodo per l'analisi dei metodi di pagamento
+  getInvestmentByPaymentMethod: () => 
+    api.get('/analytics/portfolio/investment-by-payment-method')
 };
 
 // API per le impostazioni
