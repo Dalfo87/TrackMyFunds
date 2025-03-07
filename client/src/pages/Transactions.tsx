@@ -124,6 +124,7 @@ const Transactions: React.FC = () => {
               transactions={transactions} 
               tabValue={tabValue} 
               onRefresh={fetchData}
+              cryptos={cryptos} // Passa la lista delle criptovalute al componente
             />
           </Box>
         </Paper>

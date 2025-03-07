@@ -7,12 +7,14 @@ import {
   DialogContent, DialogActions, Button, Box, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit'; // Importazione dell'icona di modifica
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import PaymentIcon from '@mui/icons-material/Payment';
 import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { transactionApi } from '../../services/api';
+import TransactionForm from './TransactionForm'; // Importazione del form per la modifica
 
 // Enum per i metodi di pagamento (deve corrispondere a quello nel backend)
 enum PaymentMethod {
@@ -27,11 +29,14 @@ interface TransactionsListProps {
   transactions: any[];
   tabValue: number;
   onRefresh: () => void;
+  cryptos?: any[]; // Aggiungiamo questa prop per passarla al form di modifica
 }
 
-const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabValue, onRefresh }) => {
+const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabValue, onRefresh, cryptos = [] }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false); // Nuovo stato per il dialog di modifica
+  const [transactionToEdit, setTransactionToEdit] = useState<any>(null); // Stato per la transazione da modificare
 
   if (!transactions || transactions.length === 0) {
     return <Typography>Nessuna transazione disponibile</Typography>;
@@ -155,6 +160,32 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
     }
   };
 
+  // Gestisce l'apertura del dialog di modifica
+  const handleOpenEditDialog = (transaction: any) => {
+    setTransactionToEdit(transaction);
+    setEditDialogOpen(true);
+  };
+
+  // Gestisce la chiusura del dialog di modifica
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setTransactionToEdit(null);
+  };
+
+  // Gestisce l'aggiornamento di una transazione
+  const handleUpdateTransaction = async (updatedData: any) => {
+    if (!transactionToEdit) return;
+    
+    try {
+      await transactionApi.update(transactionToEdit._id, updatedData);
+      handleCloseEditDialog();
+      onRefresh(); // Ricarica i dati
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento della transazione:', error);
+      // Qui potresti gestire l'errore, ad esempio mostrando un messaggio
+    }
+  };
+
   return (
     <>
       <TableContainer component={Paper}>
@@ -215,7 +246,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                       label={tx.paymentCurrency} 
                       size="small" 
                       variant="outlined"
-                      color={tx.paymentMethod === PaymentMethod.CRYPTO ? "secondary" : "default"}
+                      color={tx.paymentCurrency === 'USDT' ? "warning" : (tx.paymentMethod === PaymentMethod.CRYPTO ? "secondary" : "default")}
                     />
                   ) : (
                     '-'
@@ -225,13 +256,24 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                   {tx.category || '-'}
                 </TableCell>
                 <TableCell align="right">
-                  <IconButton 
-                    size="small" 
-                    color="error"
-                    onClick={() => handleOpenDeleteDialog(tx)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {/* Nuovo pulsante di modifica */}
+                    <IconButton 
+                      size="small" 
+                      color="primary"
+                      onClick={() => handleOpenEditDialog(tx)}
+                      sx={{ mr: 1 }}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      color="error"
+                      onClick={() => handleOpenDeleteDialog(tx)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -273,6 +315,25 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
           <Button onClick={handleDeleteTransaction} color="error">
             Elimina
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Nuovo Dialog per la modifica di una transazione */}
+      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Modifica Transazione
+        </DialogTitle>
+        <DialogContent>
+          {transactionToEdit && (
+            <TransactionForm 
+              cryptos={cryptos}
+              onSubmit={handleUpdateTransaction}
+              transaction={transactionToEdit}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog}>Annulla</Button>
         </DialogActions>
       </Dialog>
     </>

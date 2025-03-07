@@ -24,6 +24,7 @@ enum PaymentMethod {
 interface TransactionFormProps {
   cryptos: any[];
   onSubmit: (data: any) => void;
+  transaction?: any; // Proprietà opzionale per una transazione esistente da modificare
 }
 
 interface CryptoOption {
@@ -31,7 +32,7 @@ interface CryptoOption {
   name: string;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, transaction }) => {
   const [formData, setFormData] = useState({
     cryptoSymbol: '',
     type: 'buy',
@@ -79,6 +80,32 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
       setCryptoOptions(options);
     }
   }, [cryptos]);
+
+  // Inizializza il form con i dati della transazione esistente se disponibile
+  useEffect(() => {
+    if (transaction) {
+      setFormData({
+        cryptoSymbol: transaction.cryptoSymbol || '',
+        type: transaction.type || 'buy',
+        quantity: transaction.quantity ? transaction.quantity.toString() : '',
+        pricePerUnit: transaction.pricePerUnit ? transaction.pricePerUnit.toString() : '',
+        totalAmount: transaction.totalAmount ? transaction.totalAmount.toString() : '',
+        date: transaction.date ? dayjs(transaction.date) : dayjs(),
+        notes: transaction.notes || '',
+        category: transaction.category || '',
+        paymentMethod: transaction.paymentMethod || PaymentMethod.BANK_TRANSFER,
+        paymentCurrency: transaction.paymentCurrency || 'EUR'
+      });
+
+      // Trova e seleziona la crypto corrente
+      if (transaction.cryptoSymbol) {
+        const crypto = cryptoOptions.find(c => c.symbol === transaction.cryptoSymbol);
+        if (crypto) {
+          setSelectedCrypto(crypto);
+        }
+      }
+    }
+  }, [transaction, cryptoOptions]);
 
   // Effetto per gestire il cambiamento del tipo di transazione
   useEffect(() => {
@@ -513,7 +540,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit }) 
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="submit" variant="contained" color="primary">
-                {isAirdropType ? 'Registra Airdrop' : 'Salva Transazione'}
+                {transaction ? 'Aggiorna Transazione' : (isAirdropType ? 'Registra Airdrop' : 'Salva Transazione')}
               </Button>
             </Box>
           </Grid>
