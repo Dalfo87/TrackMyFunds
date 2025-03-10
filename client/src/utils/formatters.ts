@@ -18,7 +18,8 @@ export const formatCurrency = (
     
     return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: currency
+      currency: currency,
+      currencyDisplay: 'symbol'
     }).format(value);
   };
   
@@ -67,8 +68,11 @@ export const formatCurrency = (
       value = 0;
     }
     
-    return parseFloat(value.toFixed(decimals)).toString();
-  };
+  // Usa Math.round invece del semplice toFixed per un arrotondamento più preciso
+  const factor = Math.pow(10, decimals);
+  const rounded = Math.round(value * factor) / factor;
+  return rounded.toString();
+};
   
   /**
    * Calcola l'equivalente in una valuta specifica
