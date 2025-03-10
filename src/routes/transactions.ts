@@ -49,7 +49,8 @@ async function recalculatePortfolio(user: string) {
             cryptoSymbol: tx.cryptoSymbol,
             quantity: tx.quantity,
             averagePrice: tx.type === TransactionType.AIRDROP ? 0 : tx.pricePerUnit,
-            category: tx.category
+            category: tx.category,
+            type: tx.type === TransactionType.AIRDROP ? 'airdrop' : 'crypto'
           });
         } else {
           // Se l'asset esiste, aggiorna quantità e prezzo medio

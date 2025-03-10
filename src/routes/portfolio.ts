@@ -2,10 +2,10 @@ import express from 'express';
 import Portfolio from '../models/Portfolio';
 import Crypto from '../models/Crypto';
 
-// Definisci esplicitamente il router
+// Definizione del router
 const router = express.Router();
 
-// Definisci un tipo personalizzato per i gestori delle richieste
+// Tipo per i gestori delle richieste
 type RequestHandler = (
   req: express.Request,
   res: express.Response,
@@ -15,10 +15,13 @@ type RequestHandler = (
 // Funzione per recuperare il portafoglio dell'utente
 const getPortfolio: RequestHandler = async (req, res) => {
   try {
+    console.log('Recupero portafoglio utente iniziato');
+    
     let portfolio = await Portfolio.findOne({ user: 'default_user' });
     
     // Se il portafoglio non esiste, creane uno vuoto
     if (!portfolio) {
+      console.log('Portafoglio non trovato, creazione di un nuovo portafoglio vuoto');
       portfolio = new Portfolio({
         user: 'default_user',
         assets: [],
@@ -34,23 +37,38 @@ const getPortfolio: RequestHandler = async (req, res) => {
   }
 };
 
+// Funzione per ottenere il valore attuale del portafoglio - Versione semplificata
+// Funzione per ottenere il valore attuale del portafoglio
 // Funzione per ottenere il valore attuale del portafoglio
 const getPortfolioValue: RequestHandler = async (req, res) => {
   try {
+    console.log('Calcolo del valore del portafoglio iniziato');
+    
     const portfolio = await Portfolio.findOne({ user: 'default_user' });
     
     if (!portfolio || portfolio.assets.length === 0) {
       return res.json({ 
         totalValue: 0, 
         assets: [], 
-        totalProfitLoss: 0, 
-        totalProfitLossPercentage: 0 
+        totalInvestment: 0,
+        totalProfitLoss: 0,
+        totalProfitLossPercentage: 0
       });
     }
     
+    console.log(`Trovato portafoglio con ${portfolio.assets.length} asset`);
+    
     // Ottieni i prezzi attuali delle criptovalute
     const assets = await Promise.all(portfolio.assets.map(async (asset) => {
-      const crypto = await Crypto.findOne({ symbol: asset.cryptoSymbol });
+      const normalizedSymbol = asset.cryptoSymbol.trim().toUpperCase();
+      
+      console.log(`Cerco criptovaluta per simbolo: ${normalizedSymbol}`);
+      
+      const crypto = await Crypto.findOne({ symbol: normalizedSymbol });
+      
+      if (!crypto) {
+        console.log(`ATTENZIONE: Criptovaluta non trovata per simbolo: ${normalizedSymbol}`);
+      }
       
       const currentPrice = crypto ? crypto.currentPrice : 0;
       const currentValue = asset.quantity * currentPrice;
@@ -61,7 +79,7 @@ const getPortfolioValue: RequestHandler = async (req, res) => {
         : 0;
       
       return {
-        cryptoSymbol: asset.cryptoSymbol,
+        cryptoSymbol: normalizedSymbol,
         quantity: asset.quantity,
         averagePrice: asset.averagePrice,
         currentPrice,
@@ -69,7 +87,12 @@ const getPortfolioValue: RequestHandler = async (req, res) => {
         investmentValue,
         profitLoss,
         profitLossPercentage,
-        category: asset.category
+        category: asset.category,
+        type: asset.type,
+        cryptoInfo: crypto ? {
+          name: crypto.name,
+          lastUpdated: crypto.lastUpdated
+        } : null
       };
     }));
     
@@ -80,6 +103,8 @@ const getPortfolioValue: RequestHandler = async (req, res) => {
     const totalProfitLossPercentage = totalInvestment > 0 
       ? (totalProfitLoss / totalInvestment) * 100 
       : 0;
+    
+    console.log(`Calcolo completato: Valore totale=${totalValue}, Investimento totale=${totalInvestment}`);
     
     res.json({
       totalValue,
@@ -128,9 +153,46 @@ const getPortfolioByCategory: RequestHandler = async (req, res) => {
   }
 };
 
-// Registra le route con le funzioni nominate
+// Nuova funzione di diagnostica semplificata
+// Funzione di diagnostica migliorata
+// Funzione di diagnostica che mostra la struttura completa degli asset
+const diagnoseCryptoMatchingIssues: RequestHandler = async (req, res) => {
+  try {
+    console.log('Avvio diagnostica corrispondenza asset-crypto');
+    
+    // Recupera il portfolio completo senza trasformazioni
+    const portfolio = await Portfolio.findOne({ user: 'default_user' }).lean();
+    if (!portfolio) {
+      return res.json({
+        message: 'Nessun portafoglio trovato',
+        portfolio: null
+      });
+    }
+    
+    // Esamina un campione di criptovalute dal database
+    const cryptoSample = await Crypto.find().limit(5).lean();
+    
+    // Restituisci la struttura completa
+    return res.json({
+      portfolioCompleto: portfolio,
+      strutturaPrimoAsset: portfolio.assets[0] ? Object.keys(portfolio.assets[0]) : [],
+      valoriPrimiAsset: portfolio.assets.slice(0, 3),
+      esempioCrypto: cryptoSample,
+      strutturaCrypto: cryptoSample[0] ? Object.keys(cryptoSample[0]) : []
+    });
+  } catch (error) {
+    console.error('Errore nella diagnostica:', error);
+    return res.status(500).json({
+      message: 'Errore nella diagnostica',
+      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+    });
+  }
+};
+
+// Registra le route
 router.get('/', getPortfolio);
 router.get('/value', getPortfolioValue);
 router.get('/by-category', getPortfolioByCategory);
+router.get('/diagnose', diagnoseCryptoMatchingIssues);
 
 export default router;

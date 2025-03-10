@@ -1,3 +1,5 @@
+// src/models/Portfolio.ts (versione pulita)
+
 import mongoose, { Schema, Document } from 'mongoose';
 
 // Interfaccia per ogni asset nel portafoglio
@@ -6,6 +8,7 @@ interface IPortfolioAsset {
   quantity: number;        // Quantità totale posseduta
   averagePrice: number;    // Prezzo medio di acquisto
   category?: string;       // Categoria dell'investimento
+  type?: string;           // Tipo di asset (es. "crypto", "stablecoin")
 }
 
 // Interfaccia per il documento Portfolio
@@ -33,6 +36,10 @@ const PortfolioAssetSchema: Schema = new Schema({
     default: 0
   },
   category: {
+    type: String,
+    trim: true
+  },
+  type: {
     type: String,
     trim: true
   }
