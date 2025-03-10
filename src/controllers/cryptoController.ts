@@ -8,7 +8,7 @@ import logger from '../utils/logger';
 /**
  * Controller per gestire le operazioni relative alle criptovalute
  */
-export class CryptoController {
+class CryptoController {
   
   /**
    * Aggiorna le informazioni di tutte le criptovalute nel database
@@ -19,14 +19,23 @@ export class CryptoController {
       logger.info('API Key configurata: ' + (process.env.COINGECKO_API_KEY ? 'Sì (presente)' : 'No (assente)'));
       
       // Recupera le top 100 criptovalute da CoinGecko
-      const topCoins = await CoinGeckoService.getTopCoins(100);
+      // Forza l'aggiornamento dalla API bypassando la cache
+      const topCoins = await CoinGeckoService.getTopCoins(100, false);
       logger.info(`Recuperate ${topCoins.length} criptovalute da CoinGecko`);
       
       let updated = 0;
       let added = 0;
+      let skipped = 0;
       
       // Aggiorna o aggiunge ciascuna criptovaluta
       for (const coin of topCoins) {
+        // Verifica che il prezzo corrente non sia null o undefined
+        if (coin.currentPrice === null || coin.currentPrice === undefined) {
+          logger.warn(`Saltata criptovaluta ${coin.symbol} perché il prezzo corrente è nullo`);
+          skipped++;
+          continue;
+        }
+        
         const existingCrypto = await Crypto.findOne({ symbol: coin.symbol });
         
         if (existingCrypto) {
@@ -57,11 +66,14 @@ export class CryptoController {
         }
       }
       
-      logger.info(`Aggiornamento completato: ${updated} aggiornate, ${added} aggiunte`);
+      // Invalida la cache delle criptovalute
+      CoinGeckoService.invalidateCache('prices');
+      
+      logger.info(`Aggiornamento completato: ${updated} aggiornate, ${added} aggiunte, ${skipped} saltate`);
       
       res.json({
         success: true,
-        message: `Prezzi aggiornati con successo: ${updated} aggiornati, ${added} aggiunti`
+        message: `Prezzi aggiornati con successo: ${updated} aggiornati, ${added} aggiunti, ${skipped} saltati`
       });
     } catch (error) {
       logger.error('Errore nell\'aggiornamento dei prezzi:', error);
@@ -74,130 +86,6 @@ export class CryptoController {
     }
   }
 
-// /**
-//  * Aggiorna solo i prezzi delle criptovalute presenti nel portafoglio dell'utente
-//  */
-// static async updatePortfolioCryptoPrices(req: Request, res: Response): Promise<void> {
-//   try {
-//     logger.info('Avvio aggiornamento prezzi delle criptovalute nel portafoglio...');
-    
-//     // Recupera il portafoglio dell'utente
-//     const portfolio = await Portfolio.findOne({ user: 'default_user' });
-    
-//     if (!portfolio || portfolio.assets.length === 0) {
-//       logger.info('Nessuna criptovaluta nel portafoglio da aggiornare');
-//       res.json({
-//         success: true,
-//         message: 'Nessuna criptovaluta nel portafoglio da aggiornare'
-//       });
-//       return;
-//     }
-    
-//     // Estrai i simboli delle criptovalute dal portafoglio
-//     const portfolioSymbols = portfolio.assets.map(asset => asset.cryptoSymbol);
-//     logger.info(`Criptovalute nel portafoglio: ${portfolioSymbols.join(', ')}`);
-    
-//     // Recupera le criptovalute dal database
-//     const cryptosToUpdate = await Crypto.find({ symbol: { $in: portfolioSymbols } });
-    
-//     if (cryptosToUpdate.length === 0) {
-//       logger.info('Nessuna criptovaluta trovata nel database da aggiornare');
-//       res.json({
-//         success: true,
-//         message: 'Nessuna criptovaluta trovata nel database da aggiornare'
-//       });
-//       return;
-//     }
-    
-//     logger.info(`Trovate ${cryptosToUpdate.length} criptovalute da aggiornare`);
-    
-//     // Prepara un array di richieste per recuperare i prezzi aggiornati
-//     const topCoins = await CoinGeckoService.getTopCoins(250); // Recupera le prime 250 per avere più probabilità di trovare le nostre
-//     const topCoinsMap = new Map(topCoins.map(coin => [coin.symbol.toUpperCase(), coin]));
-    
-//     let updated = 0;
-//     let errors = 0;
-    
-//     // Aggiorna ogni criptovaluta
-//     for (const crypto of cryptosToUpdate) {
-//       try {
-//         const coinData = topCoinsMap.get(crypto.symbol.toUpperCase());
-        
-//         if (coinData) {
-//           await Crypto.updateOne(
-//             { symbol: crypto.symbol },
-//             { 
-//               currentPrice: coinData.currentPrice ?? 0,
-//               priceChangePercentage24h: coinData.priceChangePercentage24h,
-//               marketCap: coinData.marketCap,
-//               lastUpdated: new Date()
-//             }
-//           );
-          
-//           updated++;
-//           logger.info(`Aggiornata ${crypto.symbol} a $${coinData.currentPrice}`);
-//         } else {
-//           // Se non troviamo la cripto nell'elenco delle top, proviamo a recuperarla direttamente
-//           try {
-//             // Poiché non abbiamo l'ID CoinGecko ma solo il simbolo, questa è una soluzione semplificata
-//             // In un'implementazione completa, dovresti mappare i simboli agli ID CoinGecko
-//             logger.info(`${crypto.symbol} non trovata nella top 250, provo ricerca diretta...`);
-//             const searchResults = await CoinGeckoService.searchCoins(crypto.symbol);
-            
-//             if (searchResults.length > 0) {
-//               // Cerchiamo la corrispondenza esatta per simbolo
-//               const exactMatch = searchResults.find(result => 
-//                 result.symbol.toUpperCase() === crypto.symbol.toUpperCase()
-//               );
-              
-//               if (exactMatch) {
-//                 const coinDetails = await CoinGeckoService.getCoinPrice(exactMatch.id);
-//                 await Crypto.updateOne(
-//                   { symbol: crypto.symbol },
-//                   { 
-//                     currentPrice: coinDetails.currentPrice ?? 0,
-//                     priceChangePercentage24h: coinDetails.priceChangePercentage24h,
-//                     marketCap: coinDetails.marketCap,
-//                     lastUpdated: new Date()
-//                   }
-//                 );
-//                 updated++;
-//                 logger.info(`Aggiornata ${crypto.symbol} a $${coinDetails.currentPrice} (via ricerca)`);
-//               } else {
-//                 logger.warn(`Nessuna corrispondenza esatta per ${crypto.symbol}`);
-//                 errors++;
-//               }
-//             } else {
-//               logger.warn(`Nessun risultato per ${crypto.symbol}`);
-//               errors++;
-//             }
-//           } catch (searchError) {
-//             logger.error(`Errore nella ricerca di ${crypto.symbol}:`, searchError);
-//             errors++;
-//           }
-//         }
-//       } catch (error) {
-//         logger.error(`Errore nell'aggiornamento di ${crypto.symbol}:`, error);
-//         errors++;
-//       }
-//     }
-    
-//     logger.info(`Aggiornamento completato: ${updated} aggiornate, ${errors} errori`);
-    
-//     res.json({
-//       success: true,
-//       message: `Prezzi aggiornati con successo: ${updated} aggiornati, ${errors} errori`
-//     });
-//   } catch (error) {
-//     logger.error('Errore nell\'aggiornamento dei prezzi del portafoglio:', error);
-    
-//     res.status(500).json({
-//       success: false,
-//       message: 'Errore nell\'aggiornamento dei prezzi delle criptovalute',
-//       error: error instanceof Error ? error.message : String(error)
-//     });
-//   }
-// }
   /**
    * Aggiorna le informazioni di una specifica criptovaluta tramite ID CoinGecko
    */
@@ -206,9 +94,19 @@ export class CryptoController {
       const { coinGeckoId } = req.params;
       logger.info(`Avvio aggiornamento singola criptovaluta con ID: ${coinGeckoId}`);
       
-      // Recupera i dati aggiornati da CoinGecko
-      const coinData = await CoinGeckoService.getCoinPrice(coinGeckoId);
+      // Recupera i dati aggiornati da CoinGecko, bypassa la cache
+      const coinData = await CoinGeckoService.getCoinPrice(coinGeckoId, false);
       logger.info(`Dati recuperati per ${coinData.name} (${coinData.symbol})`);
+      
+      // Verifica che il prezzo corrente non sia null o undefined
+      if (coinData.currentPrice === null || coinData.currentPrice === undefined) {
+        logger.warn(`Impossibile aggiornare ${coinData.symbol} perché il prezzo corrente è nullo`);
+        res.status(400).json({
+          success: false,
+          message: `Impossibile aggiornare ${coinData.name} (${coinData.symbol}) perché il prezzo corrente è nullo`
+        });
+        return;
+      }
       
       // Cerca la criptovaluta nel database
       const existingCrypto = await Crypto.findOne({ symbol: coinData.symbol });
@@ -251,6 +149,10 @@ export class CryptoController {
           message: `${coinData.name} (${coinData.symbol}) aggiunto con successo`
         });
       }
+      
+      // Invalida la cache per questa criptovaluta specifica
+      CoinGeckoService.invalidateCache('prices');
+      
     } catch (error) {
       logger.error('Errore nell\'aggiornamento della criptovaluta:', error);
       
@@ -343,8 +245,9 @@ export class CryptoController {
       
       try {
         // Recupera tutte le criptovalute da CoinGecko (senza limiti)
+        // Forza l'aggiornamento dai server esterni bypassando la cache
         logger.info('Richiamo CoinGeckoService.getTopCoins(0) per ottenere tutte le criptovalute...');
-        const allCoins = await CoinGeckoService.getTopCoins(0); // 0 significa "tutte"
+        const allCoins = await CoinGeckoService.getTopCoins(0, false);
         logger.info(`Recuperate ${allCoins.length} criptovalute da CoinGecko`);
         
         if (allCoins.length === 0) {
@@ -355,6 +258,7 @@ export class CryptoController {
         let updated = 0;
         let added = 0;
         let errors = 0;
+        let skipped = 0;
         
         logger.info('Inizio aggiornamento del database...');
         
@@ -364,6 +268,13 @@ export class CryptoController {
             if (!coin.symbol) {
               logger.error('Errore: Symbol mancante per una criptovaluta', coin);
               errors++;
+              continue;
+            }
+            
+            // Verifica che il prezzo corrente non sia null o undefined
+            if (coin.currentPrice === null || coin.currentPrice === undefined) {
+              logger.warn(`Saltata criptovaluta ${coin.symbol} perché il prezzo corrente è nullo`);
+              skipped++;
               continue;
             }
             
@@ -384,7 +295,7 @@ export class CryptoController {
               updated++;
               
               if (updated % 50 === 0) {
-                logger.info(`Progresso: ${updated} criptovalute aggiornate, ${added} aggiunte`);
+                logger.info(`Progresso: ${updated} criptovalute aggiornate, ${added} aggiunte, ${skipped} saltate`);
               }
             } else {
               // Aggiungi una nuova criptovaluta
@@ -401,7 +312,7 @@ export class CryptoController {
               added++;
               
               if ((updated + added) % 50 === 0) {
-                logger.info(`Progresso: ${updated} criptovalute aggiornate, ${added} aggiunte`);
+                logger.info(`Progresso: ${updated} criptovalute aggiornate, ${added} aggiunte, ${skipped} saltate`);
               }
             }
           } catch (coinError) {
@@ -412,6 +323,9 @@ export class CryptoController {
           }
         }
         
+        // Invalida tutte le cache delle criptovalute
+        CoinGeckoService.invalidateCache();
+        
         // Aggiorna il timestamp dell'ultimo aggiornamento nelle impostazioni
         logger.info('Aggiornamento del timestamp nelle impostazioni...');
         const updateResult = await Settings.findOneAndUpdate(
@@ -421,7 +335,7 @@ export class CryptoController {
         );
         
         logger.info(`Timestamp aggiornato: ${updateResult.lastCryptoUpdate}`);
-        logger.info(`Aggiornamento completato: ${updated} criptovalute aggiornate, ${added} aggiunte, ${errors} errori`);
+        logger.info(`Aggiornamento completato: ${updated} criptovalute aggiornate, ${added} aggiunte, ${skipped} saltate, ${errors} errori`);
         logger.info('======================================');
       } catch (backgroundError) {
         logger.error('Errore durante l\'elaborazione in background:', backgroundError);
@@ -431,6 +345,92 @@ export class CryptoController {
       logger.error('Errore durante l\'invio della risposta iniziale:', error);
       // La risposta è già stata inviata, quindi non possiamo rispondere con un errore
       logger.info('======================================');
+    }
+  }
+  
+  /**
+   * Ottiene statistiche sulla cache
+   */
+  static async getCacheStats(req: Request, res: Response): Promise<void> {
+    try {
+      const stats = CoinGeckoService.getCacheStats();
+      
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      logger.error('Errore nel recupero delle statistiche della cache:', error);
+      
+      res.status(500).json({
+        success: false,
+        message: 'Errore nel recupero delle statistiche della cache',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+  
+  /**
+   * Invalida tutta la cache o una parte specifica
+   */
+  static async invalidateCache(req: Request, res: Response): Promise<void> {
+    try {
+      const { type } = req.query;
+      
+      if (type && typeof type === 'string') {
+        CoinGeckoService.invalidateCache(type);
+        res.json({
+          success: true,
+          message: `Cache di tipo "${type}" invalidata con successo`
+        });
+      } else {
+        CoinGeckoService.invalidateCache();
+        res.json({
+          success: true,
+          message: 'Tutta la cache è stata invalidata con successo'
+        });
+      }
+    } catch (error) {
+      logger.error('Errore nell\'invalidazione della cache:', error);
+      
+      res.status(500).json({
+        success: false,
+        message: 'Errore nell\'invalidazione della cache',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Testa la validità di una chiave API di CoinGecko
+   */
+  static async testApiKey(req: Request, res: Response): Promise<void> {
+    try {
+      const { apiKey } = req.body;
+      
+      if (!apiKey) {
+        res.status(400).json({
+          success: false,
+          message: 'Chiave API richiesta'
+        });
+        return;
+      }
+      
+      const result = await CoinGeckoService.testApiKey(apiKey);
+      
+      res.json({
+        success: true,
+        valid: result.valid,
+        message: result.message
+      });
+    } catch (error) {
+      logger.error('Errore nel test della chiave API:', error);
+      
+      res.status(500).json({
+        success: false,
+        message: 'Errore nel test della chiave API',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 }

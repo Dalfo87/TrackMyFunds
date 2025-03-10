@@ -11,10 +11,13 @@ import {
   CircularProgress, 
   Alert,
   Snackbar,
-  Divider
+  Divider,
+  Chip
 } from '@mui/material';
 import { settingsApi, cryptoApi } from '../services/api';
 import { formatDate, logError, getErrorMessage } from '../utils';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
@@ -24,6 +27,9 @@ const Settings: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+  const [apiKeyMessage, setApiKeyMessage] = useState<string>('');
+  const [apiKeyTestLoading, setApiKeyTestLoading] = useState(false);
 
   // Carica le impostazioni attuali all'avvio della pagina
   useEffect(() => {
@@ -46,15 +52,38 @@ const Settings: React.FC = () => {
     fetchSettings();
   }, []);
 
+  // Test della chiave API (senza salvarla)
+  const handleTestApiKey = async () => {
+    try {
+      setApiKeyTestLoading(true);
+      setError(null);
+      
+      const response = await settingsApi.testApiKey(apiKey);
+      
+      setApiKeyValid(response.data.valid);
+      setApiKeyMessage(response.data.message);
+      
+      setApiKeyTestLoading(false);
+    } catch (error) {
+      logError(error, 'Settings:handleTestApiKey');
+      setApiKeyValid(false);
+      setApiKeyMessage(getErrorMessage(error));
+      setApiKeyTestLoading(false);
+    }
+  };
+
   // Gestisce il salvataggio della chiave API
   const handleSaveApiKey = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      await settingsApi.updateSettings({ coingeckoApiKey: apiKey });
+      const response = await settingsApi.updateSettings({ coingeckoApiKey: apiKey });
       
-      setSuccess('Chiave API salvata con successo!');
+      setApiKeyValid(response.data.data.apiKeyValid);
+      setApiKeyMessage(response.data.data.apiKeyMessage || '');
+      
+      setSuccess(`Chiave API salvata con successo! ${response.data.data.apiKeyValid ? 'La chiave è valida.' : 'La chiave non è valida.'}`);
       setOpenSnackbar(true);
       setLoading(false);
     } catch (error) {
@@ -117,7 +146,27 @@ const Settings: React.FC = () => {
             margin="normal"
           />
           
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          {apiKeyValid !== null && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Chip 
+                icon={apiKeyValid ? <CheckCircleIcon /> : <CancelIcon />}
+                label={apiKeyMessage || (apiKeyValid ? 'Chiave API valida' : 'Chiave API non valida')}
+                color={apiKeyValid ? 'success' : 'error'}
+                variant="outlined"
+              />
+            </Box>
+          )}
+          
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+            <Button 
+              variant="outlined" 
+              color="info"
+              onClick={handleTestApiKey}
+              disabled={!apiKey || apiKeyTestLoading}
+            >
+              {apiKeyTestLoading ? <CircularProgress size={24} /> : 'Testa Chiave'}
+            </Button>
+            
             <Button 
               variant="contained" 
               color="primary"

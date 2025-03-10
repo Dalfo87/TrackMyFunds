@@ -19,7 +19,9 @@ export const cryptoApi = {
   getBySymbol: (symbol: string) => api.get(`/cryptos/${symbol}`),
   search: (query: string) => api.get(`/cryptos/search?query=${query}`),
   triggerUpdate: () => api.post('/cryptos/update-prices'),
-  refreshAll: () => api.post('/cryptos/refresh-all')
+  refreshAll: () => api.post('/cryptos/refresh-all'),
+  getCacheStats: () => api.get('/cryptos/cache/stats'),
+  invalidateCache: (type?: string) => api.post('/cryptos/cache/invalidate', { type })
 };
 
 // API per le transazioni
@@ -55,7 +57,8 @@ export const analyticsApi = {
 // API per le impostazioni
 export const settingsApi = {
   getSettings: () => api.get('/settings'),
-  updateSettings: (data: any) => api.put('/settings', data)
+  updateSettings: (data: any) => api.put('/settings', data),
+  testApiKey: (apiKey: string) => api.post('/settings/test-api-key', { apiKey })
 };
 
 // Crea un oggetto con tutti i servizi API

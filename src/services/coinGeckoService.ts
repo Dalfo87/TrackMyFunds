@@ -3,6 +3,7 @@ import axios, { AxiosError } from 'axios';
 import { ICrypto } from '../models/Crypto';
 import dotenv from 'dotenv';
 import logger from '../utils/logger';
+import cacheService from './cacheService';
 
 // Carica le variabili d'ambiente
 dotenv.config();
@@ -12,10 +13,26 @@ const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 // Ottieni la chiave API dalle variabili d'ambiente
 const API_KEY = process.env.COINGECKO_API_KEY;
 
+// Configurazione TTL (in secondi) per diversi tipi di richieste
+const CACHE_TTL = {
+  COIN_PRICE: 5 * 60,       // 5 minuti per i prezzi singoli
+  TOP_COINS: 15 * 60,       // 15 minuti per le top N criptovalute
+  ALL_COINS: 30 * 60,       // 30 minuti per l'elenco completo
+  SEARCH: 10 * 60           // 10 minuti per le ricerche
+};
+
+// Prefissi per le chiavi di cache
+const CACHE_KEY = {
+  COIN_PRICE: 'coin_price_',
+  TOP_COINS: 'top_coins_',
+  ALL_COINS: 'all_coins',
+  SEARCH: 'search_'
+};
+
 /**
  * Servizio per interagire con l'API di CoinGecko
  */
-export class CoinGeckoService {
+class CoinGeckoService {
   /**
    * Crea gli headers di base per le richieste API
    * @returns Headers con API Key se disponibile
@@ -31,11 +48,78 @@ export class CoinGeckoService {
   }
 
   /**
+   * Testa la validità di una chiave API di CoinGecko
+   * @param apiKey - Chiave API da testare
+   * @returns Oggetto con stato di validità e messaggio
+   */
+  static async testApiKey(apiKey: string): Promise<{ valid: boolean; message: string }> {
+    try {
+      logger.info(`Test della chiave API CoinGecko: ${apiKey.substring(0, 4)}...`);
+      
+      const response = await axios.get(`${COINGECKO_API_URL}/ping`, {
+        params: {
+          x_cg_demo_api_key: apiKey
+        }
+      });
+      
+      // Se la richiesta va a buon fine e restituisce uno stato 200, la chiave è valida
+      if (response.status === 200) {
+        logger.info('Test della chiave API CoinGecko completato con successo');
+        return {
+          valid: true,
+          message: 'Chiave API valida e funzionante'
+        };
+      } else {
+        logger.warn(`Test della chiave API CoinGecko fallito con status: ${response.status}`);
+        return {
+          valid: false,
+          message: `Risposta non valida: codice ${response.status}`
+        };
+      }
+    } catch (error) {
+      logger.error('Errore nel test della chiave API CoinGecko:', error);
+      
+      let errorMessage = 'Errore durante il test della chiave API';
+      
+      if (error instanceof AxiosError) {
+        if (error.response) {
+          if (error.response.status === 401 || error.response.status === 403) {
+            errorMessage = 'Chiave API non valida o non autorizzata';
+          } else if (error.response.status === 429) {
+            errorMessage = 'Limite di richieste raggiunto, riprova più tardi';
+          } else {
+            errorMessage = `Errore ${error.response.status}: ${error.response.statusText || 'Errore della richiesta'}`;
+          }
+        } else if (error.request) {
+          errorMessage = 'Nessuna risposta dal server CoinGecko, verifica la tua connessione';
+        }
+      }
+      
+      return {
+        valid: false,
+        message: errorMessage
+      };
+    }
+  }
+
+  /**
    * Recupera il prezzo attuale per una criptovaluta specifica
    * @param coinId - ID della moneta in CoinGecko (es. 'bitcoin')
+   * @param useCache - Se true, verifica prima nella cache (default: true)
    * @returns Dati sul prezzo attuale
    */
-  static async getCoinPrice(coinId: string): Promise<any> {
+  static async getCoinPrice(coinId: string, useCache: boolean = true): Promise<any> {
+    const cacheKey = `${CACHE_KEY.COIN_PRICE}${coinId}`;
+    
+    // Verifica se i dati sono già in cache e non sono scaduti
+    if (useCache) {
+      const cachedData = cacheService.get<any>(cacheKey);
+      if (cachedData) {
+        logger.info(`Dati per ${coinId} ottenuti dalla cache`);
+        return cachedData;
+      }
+    }
+    
     try {
       logger.info(`Recupero dati per la criptovaluta con ID: ${coinId}`);
       
@@ -53,7 +137,7 @@ export class CoinGeckoService {
       
       logger.info(`Dati recuperati con successo per ${response.data.name}`);
       
-      return {
+      const result = {
         symbol: response.data.symbol.toUpperCase(),
         name: response.data.name,
         currentPrice: response.data.market_data.current_price.usd,
@@ -61,6 +145,11 @@ export class CoinGeckoService {
         marketCap: response.data.market_data.market_cap.usd,
         lastUpdated: new Date()
       };
+      
+      // Memorizza i dati in cache
+      cacheService.set(cacheKey, result, CACHE_TTL.COIN_PRICE);
+      
+      return result;
     } catch (error) {
       logger.error(`Errore nel recupero dati per ${coinId}:`, error);
       throw error;
@@ -70,13 +159,25 @@ export class CoinGeckoService {
   /**
    * Recupera la lista delle prime N criptovalute per capitalizzazione di mercato
    * @param maxCoins - Numero massimo di criptovalute da recuperare (0 per tutte)
+   * @param useCache - Se true, verifica prima nella cache (default: true)
    * @returns Lista delle criptovalute con i loro dati di mercato
    */
-  static async getTopCoins(maxCoins: number = 100): Promise<Partial<ICrypto>[]> {
+  static async getTopCoins(maxCoins: number = 100, useCache: boolean = true): Promise<Partial<ICrypto>[]> {
     // Se maxCoins è 0, recupera tutte le criptovalute
     if (maxCoins === 0) {
       logger.info('Richiesta di recuperare TUTTE le criptovalute (senza limiti)');
-      return await this.getAllCoins();
+      return await this.getAllCoins(useCache);
+    }
+    
+    const cacheKey = `${CACHE_KEY.TOP_COINS}${maxCoins}`;
+    
+    // Verifica se i dati sono già in cache e non sono scaduti
+    if (useCache) {
+      const cachedData = cacheService.get<Partial<ICrypto>[]>(cacheKey);
+      if (cachedData) {
+        logger.info(`Top ${maxCoins} criptovalute ottenute dalla cache`);
+        return cachedData;
+      }
     }
     
     try {
@@ -95,7 +196,7 @@ export class CoinGeckoService {
       
       logger.info(`Recuperate ${response.data.length} criptovalute con successo`);
       
-      return response.data.map((coin: any) => ({
+      const result = response.data.map((coin: any) => ({
         symbol: coin.symbol.toUpperCase(),
         name: coin.name,
         currentPrice: coin.current_price,
@@ -103,6 +204,11 @@ export class CoinGeckoService {
         marketCap: coin.market_cap,
         lastUpdated: new Date()
       }));
+      
+      // Memorizza i dati in cache
+      cacheService.set(cacheKey, result, CACHE_TTL.TOP_COINS);
+      
+      return result;
     } catch (error) {
       logger.error('Errore nel recupero lista criptovalute:', error);
       throw error;
@@ -111,9 +217,21 @@ export class CoinGeckoService {
   
   /**
    * Recupera tutte le criptovalute disponibili da CoinGecko tramite paginazione
+   * @param useCache - Se true, verifica prima nella cache (default: true)
    * @returns Lista completa delle criptovalute
    */
-  private static async getAllCoins(): Promise<Partial<ICrypto>[]> {
+  private static async getAllCoins(useCache: boolean = true): Promise<Partial<ICrypto>[]> {
+    const cacheKey = CACHE_KEY.ALL_COINS;
+    
+    // Verifica se i dati sono già in cache e non sono scaduti
+    if (useCache) {
+      const cachedData = cacheService.get<Partial<ICrypto>[]>(cacheKey);
+      if (cachedData) {
+        logger.info(`Elenco completo criptovalute ottenuto dalla cache (${cachedData.length} elementi)`);
+        return cachedData;
+      }
+    }
+    
     const perPage = 250; // Massimo consentito da CoinGecko per richiesta
     let page = 1;
     let allCoins: Partial<ICrypto>[] = [];
@@ -180,6 +298,10 @@ export class CoinGeckoService {
       }
       
       logger.info(`Recuperate ${allCoins.length} criptovalute in totale.`);
+      
+      // Memorizza i dati in cache
+      cacheService.set(cacheKey, allCoins, CACHE_TTL.ALL_COINS);
+      
       return allCoins;
       
     } catch (error) {
@@ -191,9 +313,23 @@ export class CoinGeckoService {
   /**
    * Cerca una criptovaluta per nome o simbolo
    * @param query - Stringa di ricerca
+   * @param useCache - Se true, verifica prima nella cache (default: true)
    * @returns Lista delle corrispondenze trovate
    */
-  static async searchCoins(query: string): Promise<any[]> {
+  static async searchCoins(query: string, useCache: boolean = true): Promise<any[]> {
+    // Normalizza la query per l'uso come chiave di cache
+    const normalizedQuery = query.trim().toLowerCase();
+    const cacheKey = `${CACHE_KEY.SEARCH}${normalizedQuery}`;
+    
+    // Verifica se i dati sono già in cache e non sono scaduti
+    if (useCache) {
+      const cachedData = cacheService.get<any[]>(cacheKey);
+      if (cachedData) {
+        logger.info(`Risultati di ricerca per "${query}" ottenuti dalla cache`);
+        return cachedData;
+      }
+    }
+    
     try {
       logger.info(`Ricerca criptovalute con query: "${query}"`);
       
@@ -204,11 +340,56 @@ export class CoinGeckoService {
       
       logger.info(`Ricerca completata, trovati ${response.data.coins.length} risultati`);
       
+      // Memorizza i dati in cache
+      cacheService.set(cacheKey, response.data.coins, CACHE_TTL.SEARCH);
+      
       return response.data.coins;
     } catch (error) {
       logger.error(`Errore nella ricerca di "${query}":`, error);
       throw error;
     }
+  }
+  
+  /**
+   * Invalida tutta la cache o parti specifiche
+   * @param cacheType - Tipo di cache da invalidare (opzionale, se omesso invalida tutto)
+   */
+  static invalidateCache(cacheType?: string): void {
+    if (!cacheType) {
+      // Invalida tutta la cache
+      cacheService.clear();
+      logger.info('Tutta la cache CoinGecko è stata invalidata');
+      return;
+    }
+    
+    // Invalida specifici tipi di cache
+    switch (cacheType) {
+      case 'prices':
+        cacheService.deleteByPrefix(CACHE_KEY.COIN_PRICE);
+        logger.info('Cache dei prezzi delle criptovalute invalidata');
+        break;
+      case 'top':
+        cacheService.deleteByPrefix(CACHE_KEY.TOP_COINS);
+        logger.info('Cache delle top criptovalute invalidata');
+        break;
+      case 'all':
+        cacheService.delete(CACHE_KEY.ALL_COINS);
+        logger.info('Cache dell\'elenco completo invalidata');
+        break;
+      case 'search':
+        cacheService.deleteByPrefix(CACHE_KEY.SEARCH);
+        logger.info('Cache delle ricerche invalidata');
+        break;
+      default:
+        logger.warn(`Tipo di cache sconosciuto: ${cacheType}, nessuna invalidazione eseguita`);
+    }
+  }
+  
+  /**
+   * Ottiene statistiche sulla cache
+   */
+  static getCacheStats(): any {
+    return cacheService.getStats();
   }
 }
 

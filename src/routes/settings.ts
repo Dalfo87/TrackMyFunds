@@ -9,5 +9,6 @@ const router = express.Router();
 // Route per le impostazioni
 router.get('/', SettingsController.getSettings);
 router.put('/', SettingsController.updateSettings);
+router.post('/test-api-key', SettingsController.testApiKey);
 
 export default router;

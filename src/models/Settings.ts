@@ -6,6 +6,7 @@ export interface ISettings extends Document {
   user: string;                // ID dell'utente (per uso futuro con autenticazione)
   coingeckoApiKey?: string;    // Chiave API di CoinGecko
   lastCryptoUpdate?: Date;     // Data dell'ultimo aggiornamento delle criptovalute
+  cachingEnabled?: boolean;    // Flag per abilitare/disabilitare il caching
   createdAt: Date;             // Data di creazione del documento
   updatedAt: Date;             // Data dell'ultimo aggiornamento
 }
@@ -25,6 +26,10 @@ const SettingsSchema: Schema = new Schema({
   lastCryptoUpdate: {
     type: Date,
     default: null
+  },
+  cachingEnabled: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true  // Aggiunge automaticamente campi createdAt e updatedAt

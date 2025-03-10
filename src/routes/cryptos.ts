@@ -120,6 +120,11 @@ router.post('/', addCrypto);
 router.post('/update-prices', CryptoController.updateAllCryptoPrices);
 router.get('/search', CryptoController.searchCrypto);
 router.post('/refresh-all', CryptoController.refreshAllCryptos);
+
+// Nuove route per la gestione della cache
+router.get('/cache/stats', CryptoController.getCacheStats);
+router.post('/cache/invalidate', CryptoController.invalidateCache);
+
 router.get('/:symbol', getCryptoBySymbol);
 router.post('/update/:coinGeckoId', CryptoController.updateCryptoByCoinGeckoId);
 router.put('/:symbol', updateCrypto);
