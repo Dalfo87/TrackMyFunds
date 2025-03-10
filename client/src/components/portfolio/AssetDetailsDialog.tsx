@@ -19,13 +19,20 @@ import {
   Paper
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { transactionApi } from '../../services/api';
+import { 
+  formatCurrency, 
+  formatDate, 
+  formatQuantity, 
+  formatPercentage,
+  getProfitLossIcon,
+  getTransactionTypeText,
+  getTransactionTypeColor
+} from '../../utils';
 
 interface AssetDetailsDialogProps {
   open: boolean;
@@ -76,52 +83,6 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
       fetchTransactions();
     }
   }, [open, asset, fetchTransactions]);
-  
-  // Funzione per formattare valori monetari in dollari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-  
-  // Funzione per formattare le date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('it-IT');
-  };
-  
-  // Funzione per formattare le quantità con max 3 decimali
-  const formatQuantity = (value: number) => {
-    return parseFloat(value.toFixed(3)).toString();
-  };
-  
-  // Funzione per ottenere il colore del chip in base al tipo di transazione
-  const getChipColor = (type: string) => {
-    switch (type) {
-      case 'buy':
-        return 'success';
-      case 'sell':
-        return 'error';
-      case 'airdrop':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-  
-  // Funzione per ottenere il testo del tipo di transazione in italiano
-  const getTransactionTypeText = (type: string) => {
-    switch (type) {
-      case 'buy':
-        return 'Acquisto';
-      case 'sell':
-        return 'Vendita';
-      case 'airdrop':
-        return 'Airdrop';
-      default:
-        return type;
-    }
-  };
   
   // Genera dati di esempio per il grafico
   const generateChartData = () => {
@@ -234,16 +195,12 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
               Profitto/Perdita
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              {isProfit ? (
-                <TrendingUpIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
-              ) : (
-                <TrendingDownIcon color="error" fontSize="small" sx={{ mr: 0.5 }} />
-              )}
+              {getProfitLossIcon(asset.profitLoss, { fontSize: 'small', sx: { mr: 0.5 } })}
               <Typography
                 variant="h6"
                 color={isProfit ? 'success.main' : 'error.main'}
               >
-                {formatCurrency(asset.profitLoss)} ({asset.profitLossPercentage.toFixed(2)}%)
+                {formatCurrency(asset.profitLoss)} ({formatPercentage(asset.profitLossPercentage)})
               </Typography>
             </Box>
           </Grid>
@@ -321,7 +278,7 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Chip 
                           label={getTransactionTypeText(tx.type)} 
-                          color={getChipColor(tx.type) as any}
+                          color={getTransactionTypeColor(tx.type)}
                           size="small"
                         />
                         <Typography variant="body2" color="textSecondary">

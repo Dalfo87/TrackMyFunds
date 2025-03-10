@@ -18,6 +18,7 @@ import PortfolioAssetsList from '../components/portfolio/PortfolioAssetList';
 import PortfolioAllocation from '../components/portfolio/PortfolioAllocation';
 import PortfolioPerformance from '../components/portfolio/PortfolioPerformance';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { logError, getErrorMessage } from '../utils';
 
 const Portfolio: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -48,8 +49,8 @@ const Portfolio: React.FC = () => {
       
       setLoading(false);
     } catch (error) {
-      console.error('Errore nel caricamento dei dati del portafoglio:', error);
-      setError('Errore nel caricamento dei dati. Riprova più tardi.');
+      logError(error, 'Portfolio:fetchPortfolioData');
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   };
@@ -62,8 +63,8 @@ const Portfolio: React.FC = () => {
       await cryptoApi.triggerUpdate();
       await fetchPortfolioData();
     } catch (error) {
-      console.error('Errore nell\'aggiornamento dei prezzi:', error);
-      setError('Errore nell\'aggiornamento dei prezzi. Riprova più tardi.');
+      logError(error, 'Portfolio:handleRefreshPortfolio');
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   };

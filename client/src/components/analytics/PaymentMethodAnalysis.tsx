@@ -17,21 +17,14 @@ import {
   Chip
 } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import PaymentIcon from '@mui/icons-material/Payment';
-import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { analyticsApi } from '../../services/api';
-
-// Enum per i metodi di pagamento (deve corrispondere a quello nel backend)
-enum PaymentMethod {
-  BANK_TRANSFER = 'bank_transfer',
-  CREDIT_CARD = 'credit_card',
-  DEBIT_CARD = 'debit_card',
-  CRYPTO = 'crypto',
-  OTHER = 'other'
-}
+import { 
+  formatCurrency, 
+  formatPercentage, 
+  getPaymentMethodIcon, 
+  getPaymentMethodName,
+  PaymentMethod
+} from '../../utils';
 
 interface PaymentMethodAnalysisProps {}
 
@@ -49,56 +42,6 @@ const PaymentMethodAnalysis: React.FC<PaymentMethodAnalysisProps> = () => {
     '#9c27b0', // Purple
     '#607d8b'  // Blue grey
   ];
-
-  // Funzione per ottenere l'icona del metodo di pagamento
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case PaymentMethod.BANK_TRANSFER:
-        return <AccountBalanceIcon fontSize="small" />;
-      case PaymentMethod.CREDIT_CARD:
-        return <CreditCardIcon fontSize="small" />;
-      case PaymentMethod.DEBIT_CARD:
-        return <PaymentIcon fontSize="small" />;
-      case PaymentMethod.CRYPTO:
-        return <CurrencyExchangeIcon fontSize="small" />;
-      case PaymentMethod.OTHER:
-      default:
-        return <HelpOutlineIcon fontSize="small" />;
-    }
-  };
-
-  // Funzione per ottenere il nome del metodo di pagamento
-  const getPaymentMethodName = (method: string): string => {
-    switch (method) {
-      case PaymentMethod.BANK_TRANSFER:
-        return 'Bonifico Bancario';
-      case PaymentMethod.CREDIT_CARD:
-        return 'Carta di Credito';
-      case PaymentMethod.DEBIT_CARD:
-        return 'Carta di Debito';
-      case PaymentMethod.CRYPTO:
-        return 'Cryptocurrency/Stablecoin';
-      case PaymentMethod.OTHER:
-        return 'Altro';
-      case 'undefined':
-        return 'Non specificato';
-      default:
-        return method;
-    }
-  };
-
-  // Funzione per formattare i valori monetari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
-  // Funzione per formattare le percentuali
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(2)}%`;
-  };
 
   // Carica i dati di analisi dal backend
   useEffect(() => {
@@ -290,7 +233,7 @@ const PaymentMethodAnalysis: React.FC<PaymentMethodAnalysisProps> = () => {
                       <TableRow key={method} hover>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{ mr: 1 }}>{getPaymentMethodIcon(method)}</Box>
+                            <Box sx={{ mr: 1 }}>{getPaymentMethodIcon(method, { fontSize: "small" })}</Box>
                             {getPaymentMethodName(method)}
                           </Box>
                         </TableCell>

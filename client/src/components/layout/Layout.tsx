@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { Box, Drawer, AppBar, Toolbar, Typography } from '@mui/material';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
 interface LayoutProps {
@@ -13,7 +13,6 @@ const drawerWidth = 240;
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-  //const navigate = useNavigate();
   
   // Funzione per ottenere il titolo della pagina corrente
   const getPageTitle = () => {

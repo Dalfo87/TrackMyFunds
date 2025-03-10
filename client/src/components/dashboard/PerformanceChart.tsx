@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, CircularProgress, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { analyticsApi } from '../../services/api';
+import { formatCurrency } from '../../utils';
 
 const PerformanceChart: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -27,10 +28,9 @@ const PerformanceChart: React.FC = () => {
     }
   }, [period]); // period è l'unica dipendenza esterna di questa funzione
 
-  // Modifica in src/components/dashboard/PerformanceChart.tsx
   useEffect(() => {
     fetchPerformanceData();
-      }, [period, fetchPerformanceData]); // Aggiungi fetchPerformanceData alle dipendenze
+  }, [period, fetchPerformanceData]); // Aggiungi fetchPerformanceData alle dipendenze
 
   const handlePeriodChange = (event: React.MouseEvent<HTMLElement>, newPeriod: string) => {
     if (newPeriod) {
@@ -80,10 +80,7 @@ const PerformanceChart: React.FC = () => {
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip 
-            formatter={(value) => new Intl.NumberFormat('it-IT', {
-              style: 'currency',
-              currency: 'EUR'
-            }).format(value as number)}
+            formatter={(value) => formatCurrency(value as number, 'EUR')}
           />
           <Line 
             type="monotone" 

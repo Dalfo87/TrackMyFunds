@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { transactionApi, cryptoApi } from '../services/api';
 import TransactionsList from '../components/transactions/TransactionsList';
 import TransactionForm from '../components/transactions/TransactionForm';
+import { logError, getErrorMessage } from '../utils';
 
 const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -40,8 +41,8 @@ const Transactions: React.FC = () => {
       
       setLoading(false);
     } catch (error) {
-      console.error('Errore nel caricamento dei dati delle transazioni:', error);
-      setError('Errore nel caricamento dei dati. Riprova più tardi.');
+      logError(error, 'Transactions:fetchData');
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   };
@@ -74,8 +75,8 @@ const Transactions: React.FC = () => {
       handleCloseDialog();
       fetchData(); // Ricarica i dati
     } catch (error) {
-      console.error('Errore nell\'aggiunta della transazione:', error);
-      setError('Errore nell\'aggiunta della transazione. Riprova più tardi.');
+      logError(error, 'Transactions:handleAddTransaction');
+      setError(getErrorMessage(error));
     }
   };
 

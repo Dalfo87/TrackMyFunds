@@ -7,36 +7,37 @@ import {
   DialogContent, DialogActions, Button, Box, Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit'; // Importazione dell'icona di modifica
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import PaymentIcon from '@mui/icons-material/Payment';
-import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import EditIcon from '@mui/icons-material/Edit';
 import { transactionApi } from '../../services/api';
-import TransactionForm from './TransactionForm'; // Importazione del form per la modifica
-
-// Enum per i metodi di pagamento (deve corrispondere a quello nel backend)
-enum PaymentMethod {
-  BANK_TRANSFER = 'bank_transfer',
-  CREDIT_CARD = 'credit_card',
-  DEBIT_CARD = 'debit_card',
-  CRYPTO = 'crypto',
-  OTHER = 'other'
-}
+import TransactionForm from './TransactionForm';
+import { 
+  formatCurrency, 
+  formatDate, 
+  formatQuantity,
+  getTransactionTypeText,
+  getTransactionTypeColor,
+  getPaymentMethodIcon,
+  getPaymentMethodName,
+  PaymentMethod
+} from '../../utils';
 
 interface TransactionsListProps {
   transactions: any[];
   tabValue: number;
   onRefresh: () => void;
-  cryptos?: any[]; // Aggiungiamo questa prop per passarla al form di modifica
+  cryptos?: any[];
 }
 
-const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabValue, onRefresh, cryptos = [] }) => {
+const TransactionsList: React.FC<TransactionsListProps> = ({ 
+  transactions, 
+  tabValue, 
+  onRefresh, 
+  cryptos = [] 
+}) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false); // Nuovo stato per il dialog di modifica
-  const [transactionToEdit, setTransactionToEdit] = useState<any>(null); // Stato per la transazione da modificare
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
 
   if (!transactions || transactions.length === 0) {
     return <Typography>Nessuna transazione disponibile</Typography>;
@@ -50,89 +51,6 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
     if (tabValue === 3) return tx.type === 'airdrop'; // Solo airdrop
     return true;
   });
-
-  // Funzione per formattare i valori monetari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
-  // Funzione per formattare le date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('it-IT');
-  };
-
-  // Funzione per formattare le quantità con max 3 decimali
-  const formatQuantity = (value: number) => {
-    return parseFloat(value.toFixed(3)).toString();
-  };
-
-  // Funzione per ottenere il colore del chip in base al tipo di transazione
-  const getChipColor = (type: string) => {
-    switch (type) {
-      case 'buy':
-        return 'success';
-      case 'sell':
-        return 'error';
-      case 'airdrop':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
-  // Funzione per ottenere il testo del tipo di transazione in italiano
-  const getTransactionTypeText = (type: string) => {
-    switch (type) {
-      case 'buy':
-        return 'Acquisto';
-      case 'sell':
-        return 'Vendita';
-      case 'airdrop':
-        return 'Airdrop';
-      default:
-        return type;
-    }
-  };
-
-  // Funzione per ottenere l'icona e il testo del metodo di pagamento
-  const getPaymentMethodInfo = (method?: string) => {
-    if (!method) {
-      return { icon: null, text: '-' };
-    }
-    
-    switch (method) {
-      case PaymentMethod.BANK_TRANSFER:
-        return { 
-          icon: <AccountBalanceIcon fontSize="small" />, 
-          text: 'Bonifico Bancario' 
-        };
-      case PaymentMethod.CREDIT_CARD:
-        return { 
-          icon: <CreditCardIcon fontSize="small" />, 
-          text: 'Carta di Credito' 
-        };
-      case PaymentMethod.DEBIT_CARD:
-        return { 
-          icon: <PaymentIcon fontSize="small" />, 
-          text: 'Carta di Debito' 
-        };
-      case PaymentMethod.CRYPTO:
-        return { 
-          icon: <CurrencyExchangeIcon fontSize="small" />, 
-          text: 'Cryptocurrency' 
-        };
-      case PaymentMethod.OTHER:
-        return { 
-          icon: <HelpOutlineIcon fontSize="small" />, 
-          text: 'Altro' 
-        };
-      default:
-        return { icon: null, text: method };
-    }
-  };
 
   // Gestisce l'apertura del dialog di conferma per l'eliminazione
   const handleOpenDeleteDialog = (transaction: any) => {
@@ -182,7 +100,6 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
       onRefresh(); // Ricarica i dati
     } catch (error) {
       console.error('Errore nell\'aggiornamento della transazione:', error);
-      // Qui potresti gestire l'errore, ad esempio mostrando un messaggio
     }
   };
 
@@ -211,7 +128,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                 <TableCell>
                   <Chip 
                     label={getTransactionTypeText(tx.type)} 
-                    color={getChipColor(tx.type) as any}
+                    color={getTransactionTypeColor(tx.type)}
                     size="small"
                   />
                 </TableCell>
@@ -231,9 +148,9 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                 </TableCell>
                 <TableCell align="right">
                   {tx.type === 'buy' ? (
-                    <Tooltip title={getPaymentMethodInfo(tx.paymentMethod).text}>
+                    <Tooltip title={getPaymentMethodName(tx.paymentMethod)}>
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                        {getPaymentMethodInfo(tx.paymentMethod).icon}
+                        {getPaymentMethodIcon(tx.paymentMethod, { fontSize: 'small' })}
                       </Box>
                     </Tooltip>
                   ) : (
@@ -257,7 +174,6 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
                 </TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    {/* Nuovo pulsante di modifica */}
                     <IconButton 
                       size="small" 
                       color="primary"
@@ -303,7 +219,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
               )}
               {selectedTransaction.type === 'buy' && selectedTransaction.paymentMethod && (
                 <Typography variant="body2">
-                  Pagamento: {getPaymentMethodInfo(selectedTransaction.paymentMethod).text} 
+                  Pagamento: {getPaymentMethodName(selectedTransaction.paymentMethod)} 
                   {selectedTransaction.paymentCurrency && ` (${selectedTransaction.paymentCurrency})`}
                 </Typography>
               )}
@@ -318,7 +234,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({ transactions, tabVa
         </DialogActions>
       </Dialog>
 
-      {/* Nuovo Dialog per la modifica di una transazione */}
+      {/* Dialog per la modifica di una transazione */}
       <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           Modifica Transazione

@@ -10,6 +10,7 @@ import {
   useTheme
 } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { formatCurrency, formatPercentage } from '../../utils';
 
 interface PortfolioAllocationProps {
   assets: any[];
@@ -80,14 +81,6 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
     })).sort((a, b) => b.value - a.value);
   }, [assets, colors]);
 
-  // Funzione per formattare i valori monetari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
   // Formatter personalizzato per il tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -100,7 +93,7 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
             {formatCurrency(payload[0].value)}
           </Typography>
           <Typography variant="body2" color="textSecondary">
-            {payload[0].payload.percentage.toFixed(2)}%
+            {formatPercentage(payload[0].payload.percentage)}
           </Typography>
         </Paper>
       );
@@ -175,7 +168,7 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
           {pieData.slice(0, 10).map((asset, index) => (
             <Chip
               key={index}
-              label={`${asset.name} (${asset.percentage.toFixed(1)}%)`}
+              label={`${asset.name} (${formatPercentage(asset.percentage, 1)})`}
               style={{ backgroundColor: asset.color, color: 'white' }}
             />
           ))}

@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box, Typography } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { formatCurrency, formatPercentage, getProfitLossIcon, getProfitLossColor } from '../../utils';
 
 interface TopAssetsProps {
   data: any[];
@@ -16,14 +15,6 @@ const TopAssets: React.FC<TopAssetsProps> = ({ data }) => {
 
   // Ordina gli asset per valore corrente
   const sortedAssets = [...data].sort((a, b) => b.currentValue - a.currentValue).slice(0, 5);
-
-  // Funzione per formattare i valori monetari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
 
   return (
     <TableContainer>
@@ -52,16 +43,12 @@ const TopAssets: React.FC<TopAssetsProps> = ({ data }) => {
               </TableCell>
               <TableCell align="right">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  {asset.roi >= 0 ? (
-                    <TrendingUpIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
-                  ) : (
-                    <TrendingDownIcon color="error" fontSize="small" sx={{ mr: 0.5 }} />
-                  )}
+                  {getProfitLossIcon(asset.roi, { fontSize: "small", sx: { mr: 0.5 } })}
                   <Typography
                     variant="body2"
-                    color={asset.roi >= 0 ? 'success.main' : 'error.main'}
+                    color={getProfitLossColor(asset.roi)}
                   >
-                    {asset.roi.toFixed(2)}%
+                    {formatPercentage(asset.roi)}
                   </Typography>
                 </Box>
               </TableCell>

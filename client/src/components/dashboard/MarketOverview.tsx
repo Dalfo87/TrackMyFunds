@@ -4,6 +4,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box, Typography } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { formatCurrency, formatPercentage, getProfitLossIcon, getProfitLossColor } from '../../utils';
 
 interface MarketOverviewProps {
   data: any[];
@@ -13,19 +14,6 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return <Typography>Dati di mercato non disponibili</Typography>;
   }
-
-  // Funzione per formattare i valori monetari
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
-  };
-
-  // Funzione per formattare le percentuali
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(2)}%`;
-  };
 
   return (
     <TableContainer>
@@ -51,14 +39,10 @@ const MarketOverview: React.FC<MarketOverviewProps> = ({ data }) => {
               </TableCell>
               <TableCell align="right">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  {crypto.priceChangePercentage24h >= 0 ? (
-                    <TrendingUpIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
-                  ) : (
-                    <TrendingDownIcon color="error" fontSize="small" sx={{ mr: 0.5 }} />
-                  )}
+                  {getProfitLossIcon(crypto.priceChangePercentage24h, { fontSize: "small", sx: { mr: 0.5 } })}
                   <Typography
                     variant="body2"
-                    color={crypto.priceChangePercentage24h >= 0 ? 'success.main' : 'error.main'}
+                    color={getProfitLossColor(crypto.priceChangePercentage24h)}
                   >
                     {formatPercentage(crypto.priceChangePercentage24h)}
                   </Typography>

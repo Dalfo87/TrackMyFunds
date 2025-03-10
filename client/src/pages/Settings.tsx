@@ -14,6 +14,7 @@ import {
   Divider
 } from '@mui/material';
 import { settingsApi, cryptoApi } from '../services/api';
+import { formatDate, logError, getErrorMessage } from '../utils';
 
 const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
@@ -22,6 +23,7 @@ const Settings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
 
   // Carica le impostazioni attuali all'avvio della pagina
   useEffect(() => {
@@ -30,10 +32,13 @@ const Settings: React.FC = () => {
         setLoading(true);
         const response = await settingsApi.getSettings();
         setApiKey(response.data.coingeckoApiKey || '');
+        if (response.data.lastCryptoUpdate) {
+          setLastUpdateDate(new Date(response.data.lastCryptoUpdate));
+        }
         setLoading(false);
       } catch (error) {
-        console.error('Errore nel caricamento delle impostazioni:', error);
-        setError('Errore nel caricamento delle impostazioni. Riprova più tardi.');
+        logError(error, 'Settings:fetchSettings');
+        setError(getErrorMessage(error));
         setLoading(false);
       }
     };
@@ -53,8 +58,8 @@ const Settings: React.FC = () => {
       setOpenSnackbar(true);
       setLoading(false);
     } catch (error) {
-      console.error('Errore nel salvataggio della chiave API:', error);
-      setError('Errore nel salvataggio della chiave API. Riprova più tardi.');
+      logError(error, 'Settings:handleSaveApiKey');
+      setError(getErrorMessage(error));
       setOpenSnackbar(true);
       setLoading(false);
     }
@@ -69,11 +74,12 @@ const Settings: React.FC = () => {
       const response = await cryptoApi.refreshAll();
       
       setSuccess(`Aggiornamento completato! Sono state caricate ${response.data.count} criptovalute.`);
+      setLastUpdateDate(new Date());
       setOpenSnackbar(true);
       setUpdateLoading(false);
     } catch (error) {
-      console.error('Errore nell\'aggiornamento delle criptovalute:', error);
-      setError('Errore nell\'aggiornamento delle criptovalute. Riprova più tardi.');
+      logError(error, 'Settings:handleUpdateCryptos');
+      setError(getErrorMessage(error));
       setOpenSnackbar(true);
       setUpdateLoading(false);
     }
@@ -155,7 +161,7 @@ const Settings: React.FC = () => {
           </Box>
           
           <Typography variant="caption" color="textSecondary" align="center" sx={{ display: 'block', mt: 1 }}>
-            L'ultima volta che hai aggiornato le criptovalute: {updateLoading ? "In corso..." : "Mai"}
+            L'ultima volta che hai aggiornato le criptovalute: {updateLoading ? "In corso..." : (lastUpdateDate ? formatDate(lastUpdateDate) : "Mai")}
           </Typography>
         </Paper>
       </Grid>
