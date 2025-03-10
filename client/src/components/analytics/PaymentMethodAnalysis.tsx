@@ -1,4 +1,4 @@
-// client/src/components/analytics/PaymentMethodAnalysis.tsx
+// src/components/analytics/PaymentMethodAnalysis.tsx
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -14,10 +14,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip
+  Chip,
+  Button
 } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { analyticsApi } from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import useErrorHandler from '../../hooks/useErrorHandler';
 import { 
   formatCurrency, 
   formatPercentage, 
@@ -30,8 +33,10 @@ interface PaymentMethodAnalysisProps {}
 
 const PaymentMethodAnalysis: React.FC<PaymentMethodAnalysisProps> = () => {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
+  
+  const { showNotification } = useNotification();
+  const { error: localError, withErrorHandling } = useErrorHandler('PaymentMethodAnalysis');
 
   // Definizione di colori per il grafico a torta
   const colors = [
@@ -46,23 +51,35 @@ const PaymentMethodAnalysis: React.FC<PaymentMethodAnalysisProps> = () => {
   // Carica i dati di analisi dal backend
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+      await withErrorHandling(
+        async () => {
+          setLoading(true);
 
-        const response = await analyticsApi.getInvestmentByPaymentMethod();
-        setData(response.data.data);
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Errore nel caricamento dei dati di analisi per metodo di pagamento:', error);
-        setError('Errore nel caricamento dei dati. Riprova più tardi.');
-        setLoading(false);
-      }
+          const response = await analyticsApi.getInvestmentByPaymentMethod();
+          setData(response.data.data);
+          
+          setLoading(false);
+        },
+        'fetchData'
+      );
     };
 
     fetchData();
-  }, []);
+  }, [withErrorHandling]);
+
+  // Ricarica i dati
+  const handleRefresh = async () => {
+    await withErrorHandling(
+      async () => {
+        setLoading(true);
+        const response = await analyticsApi.getInvestmentByPaymentMethod();
+        setData(response.data.data);
+        setLoading(false);
+        showNotification('Dati aggiornati con successo', 'success');
+      },
+      'refreshData'
+    );
+  };
 
   // Genera i dati per il grafico a torta per metodo di pagamento
   const prepareChartData = () => {
@@ -134,11 +151,27 @@ const PaymentMethodAnalysis: React.FC<PaymentMethodAnalysisProps> = () => {
     );
   }
 
-  if (error) {
+  // Gestione dell'errore
+  if (localError.hasError) {
     return (
-      <Typography color="error" sx={{ p: 2 }}>
-        {error}
-      </Typography>
+      <Paper 
+        sx={{ 
+          p: 2, 
+          borderLeft: '4px solid', 
+          borderColor: 'error.main'
+        }}
+      >
+        <Typography color="error">{localError.message}</Typography>
+        <Button 
+          variant="outlined" 
+          color="primary"
+          onClick={handleRefresh}
+          size="small"
+          sx={{ mt: 1 }}
+        >
+          Riprova
+        </Button>
+      </Paper>
     );
   }
 

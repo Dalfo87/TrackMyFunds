@@ -1,36 +1,38 @@
-// client/src/components/dashboard/PerformanceChart.tsx
+// src/components/dashboard/PerformanceChart.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, CircularProgress, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, Typography, CircularProgress, ToggleButtonGroup, ToggleButton, Button, Paper } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { analyticsApi } from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import useErrorHandler from '../../hooks/useErrorHandler';
 import { formatCurrency } from '../../utils';
 
 const PerformanceChart: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [performanceData, setPerformanceData] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<string>('1y');
+  
+  const { showNotification } = useNotification();
+  const { error: localError, withErrorHandling } = useErrorHandler('PerformanceChart');
 
   const fetchPerformanceData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await analyticsApi.getHistoricalPerformance(period);
-      setPerformanceData(response.data.data.timeline || []);
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Errore nel caricamento dei dati di performance:', error);
-      setError('Errore nel caricamento dei dati. Riprova più tardi.');
-      setLoading(false);
-    }
-  }, [period]); // period è l'unica dipendenza esterna di questa funzione
+    await withErrorHandling(
+      async () => {
+        setLoading(true);
+        
+        const response = await analyticsApi.getHistoricalPerformance(period);
+        setPerformanceData(response.data.data.timeline || []);
+        
+        setLoading(false);
+      },
+      'fetchData'
+    );
+  }, [period, withErrorHandling]);
 
   useEffect(() => {
     fetchPerformanceData();
-  }, [period, fetchPerformanceData]); // Aggiungi fetchPerformanceData alle dipendenze
+  }, [period, fetchPerformanceData]);
 
   const handlePeriodChange = (event: React.MouseEvent<HTMLElement>, newPeriod: string) => {
     if (newPeriod) {
@@ -53,8 +55,28 @@ const PerformanceChart: React.FC = () => {
     );
   }
 
-  if (error) {
-    return <Typography color="error">{error}</Typography>;
+  // Visualizzazione dell'errore
+  if (localError.hasError) {
+    return (
+      <Paper 
+        sx={{ 
+          p: 2, 
+          borderLeft: '4px solid', 
+          borderColor: 'error.main'
+        }}
+      >
+        <Typography color="error">{localError.message}</Typography>
+        <Button 
+          variant="outlined" 
+          color="primary"
+          onClick={() => fetchPerformanceData()}
+          size="small"
+          sx={{ mt: 1 }}
+        >
+          Riprova
+        </Button>
+      </Paper>
+    );
   }
 
   return (

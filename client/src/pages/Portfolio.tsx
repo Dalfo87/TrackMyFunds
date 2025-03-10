@@ -1,6 +1,6 @@
-// client/src/pages/Portfolio.tsx
+// src/pages/Portfolio.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Grid, 
   Paper, 
@@ -12,69 +12,64 @@ import {
   Tab,
   Divider
 } from '@mui/material';
-import { portfolioApi, analyticsApi, cryptoApi } from '../services/api';
+import { useAppContext } from '../context/AppContext';
+import { useNotification } from '../context/NotificationContext';
+import useErrorHandler from '../hooks/useErrorHandler';
+import { analyticsApi } from '../services/api';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import PortfolioSummary from '../components/dashboard/PortfolioSummary';
 import PortfolioAssetsList from '../components/portfolio/PortfolioAssetList';
 import PortfolioAllocation from '../components/portfolio/PortfolioAllocation';
 import PortfolioPerformance from '../components/portfolio/PortfolioPerformance';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { logError, getErrorMessage } from '../utils';
 
 const Portfolio: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [portfolioData, setPortfolioData] = useState<any>(null);
-  const [performanceData, setPerformanceData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { state, updateCryptoPrices } = useAppContext();
+  const { showNotification } = useNotification();
+  const { error: localError, withErrorHandling } = useErrorHandler('Portfolio');
+  
   const [tabValue, setTabValue] = useState(0);
+  const [performanceData, setPerformanceData] = useState<any>(null);
+  const [performanceLoading, setPerformanceLoading] = useState(false);
+
+  // Estrai i dati dal context
+  const { 
+    portfolio: { data: portfolioData, loading, error }
+  } = state;
+
+  // Carica i dati di performance
+  useEffect(() => {
+    const fetchPerformanceData = async () => {
+      await withErrorHandling(
+        async () => {
+          setPerformanceLoading(true);
+          const response = await analyticsApi.getPortfolioPerformance();
+          setPerformanceData(response.data.data);
+          setPerformanceLoading(false);
+        },
+        'fetchPerformance'
+      );
+    };
+
+    fetchPerformanceData();
+  }, [withErrorHandling]);
 
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  // Funzione per recuperare tutti i dati per il portafoglio
-  const fetchPortfolioData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch in parallelo per migliorare le performance
-      const [portfolioValue, performanceResponse] = await Promise.all([
-        portfolioApi.getValue(),
-        analyticsApi.getPortfolioPerformance()
-      ]);
-
-      setPortfolioData(portfolioValue.data);
-      setPerformanceData(performanceResponse.data.data);
-      
-      setLoading(false);
-    } catch (error) {
-      logError(error, 'Portfolio:fetchPortfolioData');
-      setError(getErrorMessage(error));
-      setLoading(false);
-    }
-  };
-
   // Funzione per aggiornare i prezzi delle criptovalute nel portafoglio
   const handleRefreshPortfolio = async () => {
-    try {
-      setLoading(true);
-      // Utilizza l'endpoint per aggiornare solo le criptovalute nel portafoglio
-      await cryptoApi.triggerUpdate();
-      await fetchPortfolioData();
-    } catch (error) {
-      logError(error, 'Portfolio:handleRefreshPortfolio');
-      setError(getErrorMessage(error));
-      setLoading(false);
-    }
+    await withErrorHandling(
+      async () => {
+        await updateCryptoPrices();
+        showNotification('Portafoglio aggiornato con successo', 'success');
+      },
+      'refreshPortfolio'
+    );
   };
 
-  // Carica i dati all'avvio della pagina
-  useEffect(() => {
-    fetchPortfolioData();
-  }, []);
-
-  if (loading && !portfolioData) {
+  if ((loading && !portfolioData) || performanceLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
@@ -82,13 +77,29 @@ const Portfolio: React.FC = () => {
     );
   }
 
-  if (error) {
+  // Gestione degli errori
+  const displayError = localError.hasError ? localError.message : error;
+  if (displayError) {
     return (
       <Box sx={{ mt: 2 }}>
-        <Typography color="error">{error}</Typography>
-        <Button variant="contained" onClick={fetchPortfolioData} sx={{ mt: 2 }}>
-          Riprova
-        </Button>
+        <Paper 
+          sx={{ 
+            p: 2, 
+            borderLeft: '4px solid', 
+            borderColor: 'error.main',
+            bgcolor: 'error.dark',
+            color: 'error.contrastText'
+          }}
+        >
+          <Typography>{displayError}</Typography>
+          <Button 
+            variant="outlined" 
+            sx={{ mt: 1, color: 'white', borderColor: 'white' }}
+            onClick={handleRefreshPortfolio}
+          >
+            Riprova
+          </Button>
+        </Paper>
       </Box>
     );
   }

@@ -1,6 +1,6 @@
-// client/src/pages/Analytics.tsx
+// src/pages/Analytics.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Grid,
   Paper,
@@ -8,55 +8,71 @@ import {
   Box,
   Tabs,
   Tab,
-  Divider
+  Divider,
+  CircularProgress,
+  Button
 } from '@mui/material';
+import { analyticsApi } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
+import useErrorHandler from '../hooks/useErrorHandler';
 import PaymentMethodAnalysis from '../components/analytics/PaymentMethodAnalysis';
 import PortfolioPerformance from '../components/portfolio/PortfolioPerformance';
-import { analyticsApi } from '../services/api';
-
-// Componente per il contenuto di ogni tab
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`analytics-tabpanel-${index}`}
-      aria-labelledby={`analytics-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ pt: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
-
-// Funzione helper per generare le props per l'accessibilità dei tabs
-function a11yProps(index: number) {
-  return {
-    id: `analytics-tab-${index}`,
-    'aria-controls': `analytics-tabpanel-${index}`,
-  };
-}
 
 const Analytics: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [performanceData, setPerformanceData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { showNotification } = useNotification();
+  const { error: localError, withErrorHandling } = useErrorHandler('Analytics');
+
+  // Carica i dati di performance
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      await withErrorHandling(
+        async () => {
+          setLoading(true);
+          
+          const response = await analyticsApi.getPortfolioPerformance();
+          setPerformanceData(response.data.data);
+          
+          setLoading(false);
+        },
+        'fetchAnalytics'
+      );
+    };
+
+    fetchAnalytics();
+  }, [withErrorHandling]);
+
+  // Funzione per ricaricare i dati
+  const handleRefresh = async () => {
+    await withErrorHandling(
+      async () => {
+        setLoading(true);
+        const response = await analyticsApi.getPortfolioPerformance();
+        setPerformanceData(response.data.data);
+        setLoading(false);
+        showNotification('Dati aggiornati con successo', 'success');
+      },
+      'refreshAnalytics'
+    );
+  };
 
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
+
+  // Loading state
+  if (loading && !performanceData) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Grid container spacing={3}>
@@ -67,6 +83,29 @@ const Analytics: React.FC = () => {
         <Typography variant="body1" color="textSecondary" paragraph>
           Analizza il tuo portafoglio in modo dettagliato, con dati su performace, costi e metodi di investimento.
         </Typography>
+        
+        {(localError.hasError || error) && (
+          <Paper 
+            sx={{ 
+              p: 2, 
+              mb: 2, 
+              borderLeft: '4px solid', 
+              borderColor: 'error.main',
+              bgcolor: 'error.dark',
+              color: 'error.contrastText'
+            }}
+          >
+            <Typography>{localError.message || error}</Typography>
+            <Button 
+              variant="outlined" 
+              sx={{ mt: 1, color: 'white', borderColor: 'white' }}
+              onClick={handleRefresh}
+              size="small"
+            >
+              Riprova
+            </Button>
+          </Paper>
+        )}
       </Grid>
 
       <Grid item xs={12}>
@@ -79,15 +118,15 @@ const Analytics: React.FC = () => {
               variant="scrollable"
               scrollButtons="auto"
             >
-              <Tab label="Performance Generale" {...a11yProps(0)} />
-              <Tab label="Metodi di Pagamento" {...a11yProps(1)} />
-              <Tab label="Profit/Loss Realizzato" {...a11yProps(2)} />
-              <Tab label="Analisi per Categoria" {...a11yProps(3)} />
+              <Tab label="Performance Generale" />
+              <Tab label="Metodi di Pagamento" />
+              <Tab label="Profit/Loss Realizzato" />
+              <Tab label="Analisi per Categoria" />
             </Tabs>
           </Box>
 
           {/* Tab Panel per la Performance Generale */}
-          <TabPanel value={tabValue} index={0}>
+          {tabValue === 0 && (
             <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Performance Generale del Portafoglio
@@ -96,10 +135,10 @@ const Analytics: React.FC = () => {
               {/* Utilizziamo il componente già esistente PortfolioPerformance */}
               <PortfolioPerformance data={performanceData} />
             </Box>
-          </TabPanel>
+          )}
 
           {/* Tab Panel per l'Analisi dei Metodi di Pagamento */}
-          <TabPanel value={tabValue} index={1}>
+          {tabValue === 1 && (
             <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Analisi per Metodo di Pagamento
@@ -111,10 +150,10 @@ const Analytics: React.FC = () => {
               <Divider sx={{ mb: 3 }} />
               <PaymentMethodAnalysis />
             </Box>
-          </TabPanel>
+          )}
 
           {/* Tab Panel per il Profit/Loss Realizzato */}
-          <TabPanel value={tabValue} index={2}>
+          {tabValue === 2 && (
             <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Profitto/Perdita Realizzato
@@ -129,10 +168,10 @@ const Analytics: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </TabPanel>
+          )}
 
           {/* Tab Panel per l'Analisi per Categoria */}
-          <TabPanel value={tabValue} index={3}>
+          {tabValue === 3 && (
             <Box sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 Analisi per Categoria
@@ -147,7 +186,7 @@ const Analytics: React.FC = () => {
                 </Typography>
               </Box>
             </Box>
-          </TabPanel>
+          )}
         </Paper>
       </Grid>
     </Grid>

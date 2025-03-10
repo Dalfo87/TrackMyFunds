@@ -1,8 +1,15 @@
-// client/src/App.tsx
+// src/App.tsx
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+
+// Providers
+import { AppProvider } from './context/AppContext';
+import { NotificationProvider } from './context/NotificationContext';
+
+// ErrorBoundary
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Componenti di layout
 import Layout from './components/layout/Layout';
@@ -35,17 +42,43 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/settings" element={<Settings />}  />
-          </Routes>
-        </Layout>
-      </Router>
+      <ErrorBoundary componentName="AppRoot">
+        <NotificationProvider>
+          <AppProvider>
+            <Router>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={
+                    <ErrorBoundary componentName="Dashboard">
+                      <Dashboard />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/portfolio" element={
+                    <ErrorBoundary componentName="Portfolio">
+                      <Portfolio />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/transactions" element={
+                    <ErrorBoundary componentName="Transactions">
+                      <Transactions />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/analytics" element={
+                    <ErrorBoundary componentName="Analytics">
+                      <Analytics />
+                    </ErrorBoundary>
+                  } />
+                  <Route path="/settings" element={
+                    <ErrorBoundary componentName="Settings">
+                      <Settings />
+                    </ErrorBoundary>
+                  } />
+                </Routes>
+              </Layout>
+            </Router>
+          </AppProvider>
+        </NotificationProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

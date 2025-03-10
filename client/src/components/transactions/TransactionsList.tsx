@@ -1,4 +1,4 @@
-// client/src/components/transactions/TransactionsList.tsx
+// src/components/transactions/TransactionsList.tsx
 
 import React, { useState } from 'react';
 import { 
@@ -9,6 +9,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { transactionApi } from '../../services/api';
+import { useNotification } from '../../context/NotificationContext';
+import useErrorHandler from '../../hooks/useErrorHandler';
 import TransactionForm from './TransactionForm';
 import { 
   formatCurrency, 
@@ -34,6 +36,9 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
   onRefresh, 
   cryptos = [] 
 }) => {
+  const { showNotification } = useNotification();
+  const { handleError, withErrorHandling } = useErrorHandler('TransactionsList');
+  
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -68,14 +73,15 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
   const handleDeleteTransaction = async () => {
     if (!selectedTransaction) return;
     
-    try {
-      await transactionApi.delete(selectedTransaction._id);
-      handleCloseDeleteDialog();
-      onRefresh(); // Ricarica i dati
-    } catch (error) {
-      console.error('Errore nell\'eliminazione della transazione:', error);
-      // Qui potresti gestire l'errore, ad esempio mostrando un messaggio
-    }
+    await withErrorHandling(
+      async () => {
+        await transactionApi.delete(selectedTransaction._id);
+        handleCloseDeleteDialog();
+        onRefresh(); // Ricarica i dati
+        showNotification('Transazione eliminata con successo', 'success');
+      },
+      'deleteTransaction'
+    );
   };
 
   // Gestisce l'apertura del dialog di modifica
@@ -94,13 +100,15 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
   const handleUpdateTransaction = async (updatedData: any) => {
     if (!transactionToEdit) return;
     
-    try {
-      await transactionApi.update(transactionToEdit._id, updatedData);
-      handleCloseEditDialog();
-      onRefresh(); // Ricarica i dati
-    } catch (error) {
-      console.error('Errore nell\'aggiornamento della transazione:', error);
-    }
+    await withErrorHandling(
+      async () => {
+        await transactionApi.update(transactionToEdit._id, updatedData);
+        handleCloseEditDialog();
+        showNotification('Transazione aggiornata con successo', 'success');
+        onRefresh(); // Ricarica i dati
+      },
+      'updateTransaction'
+    );
   };
 
   return (

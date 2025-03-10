@@ -1,51 +1,30 @@
-// client/src/pages/Transactions.tsx
+// src/pages/Transactions.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Grid, Paper, Typography, Button, Box, CircularProgress, 
   Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions 
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { transactionApi, cryptoApi } from '../services/api';
+import { useAppContext } from '../context/AppContext';
+import { useNotification } from '../context/NotificationContext';
+import useErrorHandler from '../hooks/useErrorHandler';
 import TransactionsList from '../components/transactions/TransactionsList';
 import TransactionForm from '../components/transactions/TransactionForm';
-import { logError, getErrorMessage } from '../utils';
 
 const Transactions: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [cryptos, setCryptos] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { state, fetchTransactions, addTransaction } = useAppContext();
+  const { showNotification } = useNotification();
+  const { error: localError, handleError, withErrorHandling } = useErrorHandler('TransactionsPage');
+  
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
 
-  // Carica i dati all'avvio della pagina
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Funzione per recuperare dati di transazioni e criptovalute
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch in parallelo per migliorare le performance
-      const [transactionsResponse, cryptosResponse] = await Promise.all([
-        transactionApi.getAll(),
-        cryptoApi.getAll()
-      ]);
-
-      setTransactions(transactionsResponse.data);
-      setCryptos(cryptosResponse.data);
-      
-      setLoading(false);
-    } catch (error) {
-      logError(error, 'Transactions:fetchData');
-      setError(getErrorMessage(error));
-      setLoading(false);
-    }
-  };
+  // Estrai i dati dal context
+  const {
+    transactions: { data: transactions, loading, error: contextError },
+    cryptos: { data: cryptos }
+  } = state;
 
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -64,22 +43,36 @@ const Transactions: React.FC = () => {
 
   // Aggiunge una nuova transazione (standard o airdrop)
   const handleAddTransaction = async (transactionData: any) => {
-    try {
-      // Determina se è un airdrop o una transazione normale in base al tipo
-      if (transactionData.type === 'airdrop') {
-        await transactionApi.recordAirdrop(transactionData);
-      } else {
-        await transactionApi.add(transactionData);
-      }
-      
-      handleCloseDialog();
-      fetchData(); // Ricarica i dati
-    } catch (error) {
-      logError(error, 'Transactions:handleAddTransaction');
-      setError(getErrorMessage(error));
-    }
+    await withErrorHandling(
+      async () => {
+        const success = await addTransaction(transactionData);
+        
+        if (success) {
+          handleCloseDialog();
+          showNotification('Transazione aggiunta con successo!', 'success');
+        } else {
+          showNotification('Errore nell\'aggiunta della transazione', 'error');
+        }
+      },
+      'addTransaction'
+    );
   };
 
+  // Ricarica le transazioni
+  const handleRefresh = async () => {
+    await withErrorHandling(
+      async () => {
+        await fetchTransactions();
+        showNotification('Transazioni aggiornate', 'success');
+      },
+      'refreshTransactions'
+    );
+  };
+
+  // Errore da mostrare (dal context o dal componente locale)
+  const displayError = localError.hasError ? localError.message : contextError;
+
+  // Loading state
   if (loading && transactions.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -104,10 +97,27 @@ const Transactions: React.FC = () => {
           </Box>
         </Box>
         
-        {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            {error}
-          </Typography>
+        {displayError && (
+          <Paper 
+            sx={{ 
+              p: 2, 
+              mb: 2, 
+              borderLeft: '4px solid', 
+              borderColor: 'error.main',
+              bgcolor: 'error.dark',
+              color: 'error.contrastText'
+            }}
+          >
+            <Typography>{displayError}</Typography>
+            <Button 
+              variant="outlined" 
+              sx={{ mt: 1, color: 'white', borderColor: 'white' }}
+              onClick={handleRefresh}
+              size="small"
+            >
+              Riprova
+            </Button>
+          </Paper>
         )}
         
         <Paper sx={{ width: '100%' }}>
@@ -124,7 +134,7 @@ const Transactions: React.FC = () => {
             <TransactionsList 
               transactions={transactions} 
               tabValue={tabValue} 
-              onRefresh={fetchData}
+              onRefresh={handleRefresh}
               cryptos={cryptos} // Passa la lista delle criptovalute al componente
             />
           </Box>
