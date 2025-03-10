@@ -7,10 +7,12 @@ import {
   Grid,
   Paper,
   Chip,
-  useTheme
+  useTheme,
+  Alert
 } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency, formatPercentage } from '../../utils';
+import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface PortfolioAllocationProps {
   assets: any[];
@@ -18,6 +20,7 @@ interface PortfolioAllocationProps {
 
 const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => {
   const theme = useTheme();
+  const { error: localError } = useErrorHandler('PortfolioAllocation');
 
   // Colori per il grafico a torta
   const colors = useMemo(() => [
@@ -41,6 +44,9 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
 
   // Calcola i dati per il grafico a torta
   const pieData = useMemo(() => {
+    // Se non ci sono asset, restituisci un array vuoto
+    if (!assets || assets.length === 0) return [];
+
     // Calcola il valore totale del portafoglio
     const totalValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
     
@@ -58,6 +64,9 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
 
   // Calcola i dati per allocazione per categoria
   const categoryData = useMemo(() => {
+    // Se non ci sono asset, restituisci un array vuoto
+    if (!assets || assets.length === 0) return [];
+
     const categories: {[key: string]: number} = {};
     
     // Raggruppa per categoria
@@ -100,6 +109,24 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({ assets }) => 
     }
     return null;
   };
+
+  // Se c'è un errore, mostralo
+  if (localError.hasError) {
+    return (
+      <Alert severity="error">
+        Errore nell'elaborazione dei dati di allocazione: {localError.message}
+      </Alert>
+    );
+  }
+
+  // Se non ci sono asset, mostra un messaggio appropriato
+  if (!assets || assets.length === 0) {
+    return (
+      <Alert severity="info">
+        Nessun asset disponibile nel portafoglio. Aggiungi transazioni per visualizzare l'allocazione.
+      </Alert>
+    );
+  }
 
   return (
     <Grid container spacing={2}>

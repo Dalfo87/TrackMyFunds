@@ -1,18 +1,41 @@
 // client/src/components/dashboard/MarketOverview.tsx
 
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box, Typography } from '@mui/material';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Box, 
+  Typography, 
+  Alert
+} from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { formatCurrency, formatPercentage, getProfitLossIcon, getProfitLossColor } from '../../utils';
 
 interface MarketOverviewProps {
   data: any[];
+  error?: string | null;
 }
 
-const MarketOverview: React.FC<MarketOverviewProps> = ({ data }) => {
+const MarketOverview: React.FC<MarketOverviewProps> = ({ data, error }) => {
+  if (error) {
+    return (
+      <Alert severity="error">
+        Errore nel caricamento dei dati di mercato: {error}
+      </Alert>
+    );
+  }
+  
   if (!data || data.length === 0) {
-    return <Typography>Dati di mercato non disponibili</Typography>;
+    return (
+      <Alert severity="info">
+        Dati di mercato non disponibili al momento. Riprova più tardi.
+      </Alert>
+    );
   }
 
   return (

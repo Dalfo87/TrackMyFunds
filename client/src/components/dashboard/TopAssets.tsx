@@ -1,16 +1,39 @@
 // client/src/components/dashboard/TopAssets.tsx
 
 import React from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box, Typography } from '@mui/material';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Box, 
+  Typography, 
+  Alert 
+} from '@mui/material';
 import { formatCurrency, formatPercentage, getProfitLossIcon, getProfitLossColor } from '../../utils';
 
 interface TopAssetsProps {
   data: any[];
+  error?: string | null;
 }
 
-const TopAssets: React.FC<TopAssetsProps> = ({ data }) => {
+const TopAssets: React.FC<TopAssetsProps> = ({ data, error }) => {
+  if (error) {
+    return (
+      <Alert severity="error">
+        Errore nel caricamento degli asset: {error}
+      </Alert>
+    );
+  }
+  
   if (!data || data.length === 0) {
-    return <Typography>Nessun asset disponibile</Typography>;
+    return (
+      <Alert severity="info">
+        Nessun asset disponibile nel portafoglio. Aggiungi transazioni per visualizzare gli asset.
+      </Alert>
+    );
   }
 
   // Ordina gli asset per valore corrente
@@ -29,10 +52,10 @@ const TopAssets: React.FC<TopAssetsProps> = ({ data }) => {
         </TableHead>
         <TableBody>
           {sortedAssets.map((asset) => (
-            <TableRow key={asset.symbol}>
+            <TableRow key={asset.cryptoSymbol}>
               <TableCell component="th" scope="row">
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2">{asset.symbol}</Typography>
+                  <Typography variant="body2">{asset.cryptoSymbol}</Typography>
                 </Box>
               </TableCell>
               <TableCell align="right">
@@ -43,12 +66,12 @@ const TopAssets: React.FC<TopAssetsProps> = ({ data }) => {
               </TableCell>
               <TableCell align="right">
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                  {getProfitLossIcon(asset.roi, { fontSize: "small", sx: { mr: 0.5 } })}
+                  {getProfitLossIcon(asset.profitLossPercentage, { fontSize: "small", sx: { mr: 0.5 } })}
                   <Typography
                     variant="body2"
-                    color={getProfitLossColor(asset.roi)}
+                    color={getProfitLossColor(asset.profitLossPercentage)}
                   >
-                    {formatPercentage(asset.roi)}
+                    {formatPercentage(asset.profitLossPercentage)}
                   </Typography>
                 </Box>
               </TableCell>

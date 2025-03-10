@@ -10,12 +10,15 @@ import {
   Tabs,
   Tab,
   ToggleButtonGroup,
-  ToggleButton
+  ToggleButton,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { cryptoApi } from '../../services/api';
+import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface PortfolioPerformanceProps {
   data: any;
@@ -25,26 +28,39 @@ const PortfolioPerformance: React.FC<PortfolioPerformanceProps> = ({ data }) => 
   const [tabValue, setTabValue] = useState(0);
   const [timeRange, setTimeRange] = useState('1y');
   const [euroRate, setEuroRate] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  
+  // Utilizziamo il hook personalizzato per la gestione degli errori
+  const { error: localError, withErrorHandling } = useErrorHandler('PortfolioPerformance');
 
   useEffect(() => {
     // Recupera il tasso di cambio EUR/USD usando la crypto "euro-coin"
     const fetchEuroRate = async () => {
-      try {
-        const response = await cryptoApi.getBySymbol('EURC');
-        if (response.data && response.data.currentPrice) {
-          setEuroRate(response.data.currentPrice);
-        } else {
-          // Valore fallback nel caso in cui l'API non restituisca un dato valido
-          setEuroRate(0.91); // Valore approssimativo EUR/USD
+      setLoading(true);
+      await withErrorHandling(
+        async () => {
+          const response = await cryptoApi.getBySymbol('EURC');
+          if (response.data && response.data.currentPrice) {
+            setEuroRate(response.data.currentPrice);
+          } else {
+            // Valore fallback nel caso in cui l'API non restituisca un dato valido
+            setEuroRate(0.91); // Valore approssimativo EUR/USD
+          }
+          setLoading(false);
+        },
+        'fetchEuroRate',
+        () => {
+          // In caso di successo ma senza dati, usa il valore fallback
+          if (euroRate === 0) {
+            setEuroRate(0.91);
+          }
+          setLoading(false);
         }
-      } catch (error) {
-        console.error('Errore nel recupero del tasso di cambio EUR/USD:', error);
-        setEuroRate(0.91); // Valore fallback in caso di errore
-      }
+      );
     };
 
     fetchEuroRate();
-  }, []);
+  }, [withErrorHandling]);
 
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -58,12 +74,30 @@ const PortfolioPerformance: React.FC<PortfolioPerformanceProps> = ({ data }) => 
     }
   };
 
+  // Se i dati non sono disponibili o stiamo caricando
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Se c'è un errore
+  if (localError.hasError) {
+    return (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        Errore nel caricamento dei dati di performance: {localError.message}
+      </Alert>
+    );
+  }
+
   // Se i dati non sono disponibili
   if (!data || !data.timeline || data.timeline.length === 0) {
     return (
-      <Typography variant="body1">
+      <Alert severity="info">
         Dati di performance non disponibili. Aggiungi transazioni per visualizzare la performance.
-      </Typography>
+      </Alert>
     );
   }
 

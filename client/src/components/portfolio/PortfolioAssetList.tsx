@@ -1,4 +1,4 @@
-// client/src/components/portfolio/PortfolioAssetsList.tsx
+// client/src/components/portfolio/PortfolioAssetList.tsx
 
 import React, { useState } from 'react';
 import { 
@@ -14,7 +14,8 @@ import {
   Box,
   IconButton,
   Tooltip,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AssetDetailsDialog from './AssetDetailsDialog';
@@ -28,17 +29,27 @@ import {
 interface PortfolioAssetsListProps {
   assets: any[];
   tabValue: number;
+  error?: string | null;
 }
 
 // Definizione delle proprietà per l'ordinamento
 type OrderDirection = 'asc' | 'desc';
-type OrderableField = 'symbol' | 'currentValue' | 'profitLoss' | 'profitLossPercentage' | 'quantity';
+type OrderableField = 'cryptoSymbol' | 'currentValue' | 'profitLoss' | 'profitLossPercentage' | 'quantity';
 
-const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabValue }) => {
+const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabValue, error }) => {
   const [order, setOrder] = useState<OrderDirection>('desc');
   const [orderBy, setOrderBy] = useState<OrderableField>('currentValue');
   const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Gestisce gli errori
+  if (error) {
+    return (
+      <Alert severity="error">
+        Errore nel caricamento degli asset: {error}
+      </Alert>
+    );
+  }
 
   // Filtra gli asset in base al tab selezionato
   const filteredAssets = assets.filter(asset => {
@@ -83,7 +94,11 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
   };
 
   if (!assets || assets.length === 0) {
-    return <Typography>Nessun asset disponibile</Typography>;
+    return (
+      <Alert severity="info">
+        Nessun asset disponibile nel portafoglio. Aggiungi transazioni per visualizzare gli asset.
+      </Alert>
+    );
   }
 
   return (
@@ -94,9 +109,9 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
             <TableRow>
               <TableCell>
                 <TableSortLabel
-                  active={orderBy === 'symbol'}
+                  active={orderBy === 'cryptoSymbol'}
                   direction={order}
-                  onClick={() => handleRequestSort('symbol')}
+                  onClick={() => handleRequestSort('cryptoSymbol')}
                 >
                   Asset
                 </TableSortLabel>

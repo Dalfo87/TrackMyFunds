@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
   Button, Grid, Box, Typography, Autocomplete,
-  Divider, FormHelperText
+  Divider, FormHelperText, Alert
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/it';
+import useErrorHandler from '../../hooks/useErrorHandler';
 
 // Enumeration dei metodi di pagamento (deve corrispondere a quello nel backend)
 enum PaymentMethod {
@@ -52,6 +53,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
   const [cryptoOptions, setCryptoOptions] = useState<CryptoOption[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption | null>(null);
+  
+  // Utilizziamo il hook personalizzato per la gestione degli errori
+  const { error: localError } = useErrorHandler('TransactionForm');
 
   // Lista di stablecoin comuni
   const commonStablecoins = [
@@ -352,6 +356,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="it">
+      {/* Mostra l'errore se presente */}
+      {localError.hasError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Errore nel form: {localError.message}
+        </Alert>
+      )}
+
       <form onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>

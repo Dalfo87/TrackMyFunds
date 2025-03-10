@@ -16,12 +16,14 @@ import {
   IconButton,
   Tab,
   Tabs,
-  Paper
+  Paper,
+  Alert
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { transactionApi } from '../../services/api';
 import { 
@@ -33,6 +35,7 @@ import {
   getTransactionTypeText,
   getTransactionTypeColor
 } from '../../utils';
+import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface AssetDetailsDialogProps {
   open: boolean;
@@ -44,7 +47,9 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
   const [tabValue, setTabValue] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Utilizziamo il hook personalizzato per la gestione degli errori
+  const { error: localError, withErrorHandling } = useErrorHandler('AssetDetailsDialog');
   
   // Gestisce il cambio di tab
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -55,27 +60,25 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
   const fetchTransactions = useCallback(async () => {
     if (!asset || !asset.cryptoSymbol) return;
     
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // In una implementazione reale, dovresti avere un endpoint per recuperare
-      // le transazioni per un asset specifico. Per ora, simuliamo
-      const response = await transactionApi.getAll();
-      
-      // Filtra le transazioni per il simbolo dell'asset
-      const assetTransactions = response.data.filter(
-        (tx: any) => tx.cryptoSymbol === asset.cryptoSymbol
-      );
-      
-      setTransactions(assetTransactions);
-      setLoading(false);
-    } catch (error) {
-      console.error('Errore nel recupero delle transazioni:', error);
-      setError('Errore nel recupero delle transazioni. Riprova più tardi.');
-      setLoading(false);
-    }
-  }, [asset]);
+    await withErrorHandling(
+      async () => {
+        setLoading(true);
+        
+        // In una implementazione reale, dovresti avere un endpoint per recuperare
+        // le transazioni per un asset specifico. Per ora, simuliamo
+        const response = await transactionApi.getAll();
+        
+        // Filtra le transazioni per il simbolo dell'asset
+        const assetTransactions = response.data.filter(
+          (tx: any) => tx.cryptoSymbol === asset.cryptoSymbol
+        );
+        
+        setTransactions(assetTransactions);
+        setLoading(false);
+      },
+      'fetchTransactions'
+    );
+  }, [asset, withErrorHandling]);
   
   // Carica le transazioni dell'asset quando il dialog è aperto
   useEffect(() => {
@@ -107,7 +110,7 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
   };
   
   // Dati per il grafico
-  const chartData = generateChartData();
+  const chartData = asset ? generateChartData() : [];
   
   // Se l'asset non è definito, non mostrare nulla
   if (!asset) return null;
@@ -143,6 +146,21 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
       </DialogTitle>
       
       <DialogContent dividers>
+        {/* Mostra l'errore se presente */}
+        {localError.hasError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {localError.message}
+            <Button 
+              size="small" 
+              color="inherit" 
+              onClick={fetchTransactions}
+              sx={{ ml: 1 }}
+            >
+              Riprova
+            </Button>
+          </Alert>
+        )}
+        
         {/* Riepilogo principale dell'asset */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6}>
@@ -257,8 +275,16 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
                 <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
                   <CircularProgress />
                 </Box>
-              ) : error ? (
-                <Typography color="error">{error}</Typography>
+              ) : localError.hasError ? (
+                <Box sx={{ textAlign: 'center', my: 2 }}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={fetchTransactions}
+                    startIcon={<RefreshIcon />}
+                  >
+                    Riprova
+                  </Button>
+                </Box>
               ) : transactions.length === 0 ? (
                 <Typography variant="body2">
                   Nessuna transazione trovata per questo asset.

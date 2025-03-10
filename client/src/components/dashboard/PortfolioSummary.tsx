@@ -1,10 +1,11 @@
 // client/src/components/dashboard/PortfolioSummary.tsx
 
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Divider, Grid } from '@mui/material';
+import { Box, Typography, Divider, Grid, Alert, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { cryptoApi } from '../../services/api';
+import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface PortfolioSummaryProps {
   data: {
@@ -17,26 +18,35 @@ interface PortfolioSummaryProps {
 
 const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
   const [euroRate, setEuroRate] = useState<number>(0);
+  
+  // Utilizziamo il hook personalizzato per la gestione degli errori
+  const { error: localError, withErrorHandling } = useErrorHandler('PortfolioSummary');
 
   useEffect(() => {
     // Recupera il tasso di cambio EUR/USD usando la crypto "euro-coin"
     const fetchEuroRate = async () => {
-      try {
-        const response = await cryptoApi.getBySymbol('EURC');
-        if (response.data && response.data.currentPrice) {
-          setEuroRate(response.data.currentPrice);
-        } else {
-          // Valore fallback nel caso in cui l'API non restituisca un dato valido
-          setEuroRate(0.91); // Valore approssimativo EUR/USD
+      await withErrorHandling(
+        async () => {
+          const response = await cryptoApi.getBySymbol('EURC');
+          if (response.data && response.data.currentPrice) {
+            setEuroRate(response.data.currentPrice);
+          } else {
+            // Valore fallback nel caso in cui l'API non restituisca un dato valido
+            setEuroRate(0.91); // Valore approssimativo EUR/USD
+          }
+        },
+        'fetchEuroRate',
+        () => {
+          // In caso di successo ma senza dati, usa il valore fallback
+          if (euroRate === 0) {
+            setEuroRate(0.91);
+          }
         }
-      } catch (error) {
-        console.error('Errore nel recupero del tasso di cambio EUR/USD:', error);
-        setEuroRate(0.91); // Valore fallback in caso di errore
-      }
+      );
     };
 
     fetchEuroRate();
-  }, []);
+  }, [withErrorHandling]);
 
   if (!data) return <Typography>Dati non disponibili</Typography>;
 
@@ -68,6 +78,13 @@ const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ data }) => {
 
   return (
     <Box>
+      {/* Mostra l'errore se presente */}
+      {localError.hasError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Errore nel recupero del tasso di cambio: {localError.message}
+        </Alert>
+      )}
+      
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <Typography variant="h4" align="center">
