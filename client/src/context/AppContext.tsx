@@ -251,23 +251,25 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
-  // Add transaction
-  const addTransaction = async (transaction: any): Promise<boolean> => {
-    try {
-      if (transaction.type === 'airdrop') {
-        await transactionApi.recordAirdrop(transaction);
-      } else {
-        await transactionApi.add(transaction);
-      }
-      
-      // Refresh data after adding transaction
-      await Promise.all([fetchTransactions(), fetchPortfolio()]);
-      return true;
-    } catch (error) {
-      logError(error, 'AppContext:addTransaction');
-      return false;
+  // Aggiorna la funzione addTransaction nel AppContext.tsx per gestire il tipo farming
+const addTransaction = async (transaction: any): Promise<boolean> => {
+  try {
+    if (transaction.type === 'airdrop') {
+      await transactionApi.recordAirdrop(transaction);
+    } else if (transaction.type === 'farming') {
+      await transactionApi.recordFarming(transaction);
+    } else {
+      await transactionApi.add(transaction);
     }
-  };
+    
+    // Refresh data after adding transaction
+    await Promise.all([fetchTransactions(), fetchPortfolio()]);
+    return true;
+  } catch (error) {
+    logError(error, 'AppContext:addTransaction');
+    return false;
+  }
+};
 
   // Update transaction
   const updateTransaction = async (id: string, transaction: any): Promise<boolean> => {

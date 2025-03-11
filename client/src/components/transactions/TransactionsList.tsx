@@ -1,6 +1,6 @@
-// src/components/transactions/TransactionsList.tsx
+// src/components/transactions/TransactionsList.tsx (modificato)
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
   Paper, Typography, IconButton, Chip, Dialog, DialogTitle, 
@@ -11,7 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { transactionApi } from '../../services/api';
 import { useNotification } from '../../context/NotificationContext';
 import useErrorHandler from '../../hooks/useErrorHandler';
-import TransactionForm from './TransactionForm';
+import TransactionForm, { TransactionFormRef } from './TransactionForm';
 import { 
   formatCurrency, 
   formatDate, 
@@ -43,6 +43,9 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
+  
+  // Crea un ref per accedere ai metodi del form
+  const formRef = useRef<TransactionFormRef>(null);
 
   if (!transactions || transactions.length === 0) {
     return <Typography>Nessuna transazione disponibile</Typography>;
@@ -110,6 +113,13 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
       'updateTransaction'
     );
   };
+  
+  // Gestisce il click sul pulsante di salvataggio
+  const handleSaveClick = () => {
+    if (formRef.current) {
+      formRef.current.submitForm();
+    }
+  };
 
   return (
     <>
@@ -155,7 +165,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
                   }
                 </TableCell>
                 <TableCell align="right">
-                  {tx.type === 'buy' ? (
+                  {(tx.type === 'buy' || tx.type === 'sell') && tx.paymentMethod ? (
                     <Tooltip title={getPaymentMethodName(tx.paymentMethod)}>
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {getPaymentMethodIcon(tx.paymentMethod, { fontSize: 'small' })}
@@ -166,7 +176,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
                   )}
                 </TableCell>
                 <TableCell align="right">
-                  {tx.type === 'buy' && tx.paymentCurrency ? (
+                  {(tx.type === 'buy' || tx.type === 'sell') && tx.paymentCurrency ? (
                     <Chip 
                       label={tx.paymentCurrency} 
                       size="small" 
@@ -253,11 +263,19 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
               cryptos={cryptos}
               onSubmit={handleUpdateTransaction}
               transaction={transactionToEdit}
+              ref={formRef}
             />
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseEditDialog}>Annulla</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={handleSaveClick}
+          >
+            Salva
+          </Button>
         </DialogActions>
       </Dialog>
     </>

@@ -1,6 +1,6 @@
 // client/src/components/transactions/TransactionForm.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { 
   TextField, FormControl, InputLabel, Select, MenuItem, 
   Button, Grid, Box, Typography, Autocomplete,
@@ -28,12 +28,21 @@ interface TransactionFormProps {
   transaction?: any; // Proprietà opzionale per una transazione esistente da modificare
 }
 
+// Definisci l'interfaccia per i metodi esposti
+export interface TransactionFormRef {
+  submitForm: () => void;
+}
+
 interface CryptoOption {
   symbol: string;
   name: string;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, transaction }) => {
+const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({ 
+  cryptos, 
+  onSubmit, 
+  transaction 
+}, ref) => {
   const [formData, setFormData] = useState({
     cryptoSymbol: '',
     type: 'buy',
@@ -113,24 +122,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
 
   // Effetto per gestire il cambiamento del tipo di transazione
   useEffect(() => {
-    if (formData.type === 'airdrop') {
-      setIsAirdropType(true);
-      // Imposta automaticamente prezzo e totale a zero per airdrop
+    if (formData.type === 'airdrop' || formData.type === 'farming') {
+      setIsAirdropType(true); // Usiamo la stessa variabile per entrambi, se necessario possiamo rinominarla
+      // Imposta automaticamente prezzo e totale a zero per airdrop e farming
       setFormData(prev => ({
         ...prev,
         pricePerUnit: '0',
         totalAmount: '0',
-        paymentMethod: '' as any, // Rimuovi il metodo di pagamento per airdrop
-        paymentCurrency: '' // Rimuovi la valuta di pagamento per airdrop
+        paymentMethod: '' as any, // Rimuovi il metodo di pagamento
+        paymentCurrency: '' // Rimuovi la valuta di pagamento
       }));
     } else {
       setIsAirdropType(false);
-      // Reimpostare il metodo di pagamento predefinito se prima era un airdrop
+      // Reimpostare il metodo di pagamento predefinito
       if (!formData.paymentMethod) {
         setFormData(prev => ({
           ...prev,
           paymentMethod: PaymentMethod.BANK_TRANSFER,
-          paymentCurrency: 'EUR'
+          paymentCurrency: formData.type === 'sell' ? (prev.paymentMethod === PaymentMethod.CRYPTO ? 'USDT' : 'EUR') : 'EUR'
         }));
       }
     }
@@ -158,6 +167,23 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
       }
     }
   }, [formData.paymentMethod]);
+
+  // Esponi il metodo submitForm attraverso il ref
+  useImperativeHandle(ref, () => ({
+    submitForm: () => {
+      if (validateForm()) {
+        const formattedData = {
+          ...formData,
+          quantity: parseFloat(formData.quantity),
+          pricePerUnit: parseFloat(formData.pricePerUnit),
+          totalAmount: parseFloat(formData.totalAmount),
+          date: formData.date.toISOString()
+        };
+        
+        onSubmit(formattedData);
+      }
+    }
+  }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const { name, value } = e.target;
@@ -272,15 +298,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
     if (!isAirdropType && (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0)) {
       newErrors.pricePerUnit = 'Inserisci un prezzo valido';
     }
-
+  
     // Per acquisti e vendite, verifica che sia specificato un metodo di pagamento
     if ((formData.type === 'buy' || formData.type === 'sell') && !formData.paymentMethod) {
-      newErrors.paymentMethod = 'Seleziona un metodo di pagamento';
+      newErrors.paymentMethod = formData.type === 'buy' 
+        ? 'Seleziona un metodo di pagamento' 
+        : 'Seleziona un metodo di ricezione';
     }
-
+  
     // Per pagamenti crypto, verifica che sia specificata una valuta
     if (formData.paymentMethod === PaymentMethod.CRYPTO && !formData.paymentCurrency) {
-      newErrors.paymentCurrency = 'Seleziona una valuta crypto';
+      newErrors.paymentCurrency = formData.type === 'buy' 
+        ? 'Seleziona una valuta crypto' 
+        : 'Seleziona una valuta ricevuta';
     }
     
     setErrors(newErrors);
@@ -305,6 +335,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
     
     onSubmit(formattedData);
   };
+  // La funzione submitForm (collegata al ref) resta invariata perché già utilizza validateForm()
+
 
   // Gestisce la selezione della criptovaluta dall'autocomplete
   const handleCryptoChange = (event: React.SyntheticEvent, newValue: CryptoOption | null) => {
@@ -421,19 +453,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
           </Grid>
           
           <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Tipo</InputLabel>
-              <Select
-                name="type"
-                value={formData.type}
-                onChange={handleSelectChange}
-                label="Tipo"
-              >
-                <MenuItem value="buy">Acquisto</MenuItem>
-                <MenuItem value="sell">Vendita</MenuItem>
-                <MenuItem value="airdrop">Airdrop</MenuItem>
-              </Select>
-            </FormControl>
+          <FormControl fullWidth>
+            <InputLabel>Tipo</InputLabel>
+            <Select
+              name="type"
+              value={formData.type}
+              onChange={handleSelectChange}
+              label="Tipo"
+            >
+              <MenuItem value="buy">Acquisto</MenuItem>
+              <MenuItem value="sell">Vendita</MenuItem>
+              <MenuItem value="airdrop">Airdrop</MenuItem>
+              <MenuItem value="farming">Farming</MenuItem>
+            </Select>
+          </FormControl>
           </Grid>
           
           <Grid item xs={12} sm={6}>
@@ -573,22 +606,16 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
           {isAirdropType && (
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">
-                Un airdrop è un'acquisizione gratuita di criptovalute. Verrà registrato come un'acquisizione con costo zero.
+                {formData.type === 'airdrop' 
+                  ? "Un airdrop è un'acquisizione gratuita di criptovalute. Verrà registrato come un'acquisizione con costo zero."
+                  : "Il farming rappresenta criptovalute guadagnate fornendo liquidità o attraverso staking. Verrà registrato con costo zero."}
               </Typography>
             </Grid>
           )}
-          
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button type="submit" variant="contained" color="primary">
-                {transaction ? 'Aggiorna Transazione' : (isAirdropType ? 'Registra Airdrop' : 'Salva Transazione')}
-              </Button>
-            </Box>
-          </Grid>
         </Grid>
       </form>
     </LocalizationProvider>
   );
-};
+});
 
 export default TransactionForm;

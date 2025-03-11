@@ -1,6 +1,6 @@
-// src/pages/Transactions.tsx
+// src/pages/Transactions.tsx (modificato)
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Grid, Paper, Typography, Button, Box, CircularProgress, 
   Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions 
@@ -10,7 +10,7 @@ import { useAppContext } from '../context/AppContext';
 import { useNotification } from '../context/NotificationContext';
 import useErrorHandler from '../hooks/useErrorHandler';
 import TransactionsList from '../components/transactions/TransactionsList';
-import TransactionForm from '../components/transactions/TransactionForm';
+import TransactionForm, { TransactionFormRef } from '../components/transactions/TransactionForm';
 
 const Transactions: React.FC = () => {
   const { state, fetchTransactions, addTransaction } = useAppContext();
@@ -19,6 +19,9 @@ const Transactions: React.FC = () => {
   
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
+  
+  // Crea un ref per accedere ai metodi del form
+  const formRef = useRef<TransactionFormRef>(null);
 
   // Estrai i dati dal context
   const {
@@ -67,6 +70,13 @@ const Transactions: React.FC = () => {
       },
       'refreshTransactions'
     );
+  };
+  
+  // Gestisce il click sul pulsante di salvataggio
+  const handleSaveClick = () => {
+    if (formRef.current) {
+      formRef.current.submitForm();
+    }
   };
 
   // Errore da mostrare (dal context o dal componente locale)
@@ -149,11 +159,19 @@ const Transactions: React.FC = () => {
         <DialogContent>
           <TransactionForm 
             cryptos={cryptos} 
-            onSubmit={handleAddTransaction} 
+            onSubmit={handleAddTransaction}
+            ref={formRef}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Annulla</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={handleSaveClick}
+          >
+            Salva
+          </Button>
         </DialogActions>
       </Dialog>
     </Grid>

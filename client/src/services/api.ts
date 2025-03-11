@@ -31,7 +31,8 @@ export const transactionApi = {
   add: (data: any) => api.post('/transactions', data),
   update: (id: string, data: any) => api.put(`/transactions/${id}`, data),
   delete: (id: string) => api.delete(`/transactions/${id}`),
-  recordAirdrop: (data: any) => api.post('/transactions/airdrop', data)
+  recordAirdrop: (data: any) => api.post('/transactions/airdrop', data),
+  recordFarming: (data: any) => api.post('/transactions/farming', data)
 };
 
 // API per il portafoglio
