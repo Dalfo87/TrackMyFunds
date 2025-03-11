@@ -273,8 +273,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
       newErrors.pricePerUnit = 'Inserisci un prezzo valido';
     }
 
-    // Per acquisti, verifica che sia specificato un metodo di pagamento
-    if (formData.type === 'buy' && !formData.paymentMethod) {
+    // Per acquisti e vendite, verifica che sia specificato un metodo di pagamento
+    if ((formData.type === 'buy' || formData.type === 'sell') && !formData.paymentMethod) {
       newErrors.paymentMethod = 'Seleziona un metodo di pagamento';
     }
 
@@ -352,6 +352,36 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
       default:
         return method;
     }
+  };
+
+  // Ottiene l'etichetta per la sezione di pagamento in base al tipo di transazione
+  const getPaymentSectionLabel = (): string => {
+    if (formData.type === 'buy') {
+      return 'Dettagli Pagamento';
+    } else if (formData.type === 'sell') {
+      return 'Dettagli Ricezione';
+    }
+    return 'Dettagli';
+  };
+
+  // Ottiene l'etichetta per il metodo di pagamento in base al tipo di transazione
+  const getPaymentMethodFieldLabel = (): string => {
+    if (formData.type === 'buy') {
+      return 'Metodo di Pagamento';
+    } else if (formData.type === 'sell') {
+      return 'Metodo di Ricezione';
+    }
+    return 'Metodo';
+  };
+
+  // Ottiene l'etichetta per la valuta di pagamento in base al tipo di transazione
+  const getPaymentCurrencyFieldLabel = (): string => {
+    if (formData.type === 'buy') {
+      return 'Valuta di Pagamento';
+    } else if (formData.type === 'sell') {
+      return 'Valuta Ricevuta';
+    }
+    return 'Valuta';
   };
 
   return (
@@ -457,24 +487,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
             />
           </Grid>
           
-          {/* Sezione con metodo di pagamento, visibile solo per acquisti */}
-          {formData.type === 'buy' && (
+          {/* Sezione con metodo di pagamento, visibile per acquisti e vendite */}
+          {(formData.type === 'buy' || formData.type === 'sell') && (
             <>
               <Grid item xs={12}>
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="subtitle1" gutterBottom>
-                  Dettagli Pagamento
+                  {getPaymentSectionLabel()}
                 </Typography>
               </Grid>
               
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.paymentMethod}>
-                  <InputLabel>Metodo di Pagamento</InputLabel>
+                  <InputLabel>{getPaymentMethodFieldLabel()}</InputLabel>
                   <Select
                     name="paymentMethod"
                     value={formData.paymentMethod}
                     onChange={handleSelectChange}
-                    label="Metodo di Pagamento"
+                    label={getPaymentMethodFieldLabel()}
                   >
                     <MenuItem value={PaymentMethod.BANK_TRANSFER}>{getPaymentMethodLabel(PaymentMethod.BANK_TRANSFER)}</MenuItem>
                     <MenuItem value={PaymentMethod.CREDIT_CARD}>{getPaymentMethodLabel(PaymentMethod.CREDIT_CARD)}</MenuItem>
@@ -488,12 +518,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ cryptos, onSubmit, tr
               
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth error={!!errors.paymentCurrency}>
-                  <InputLabel>Valuta di Pagamento</InputLabel>
+                  <InputLabel>{getPaymentCurrencyFieldLabel()}</InputLabel>
                   <Select
                     name="paymentCurrency"
                     value={formData.paymentCurrency}
                     onChange={handleSelectChange}
-                    label="Valuta di Pagamento"
+                    label={getPaymentCurrencyFieldLabel()}
                   >
                     {/* Mostra stablecoin per pagamenti crypto, valute fiat per altri metodi */}
                     {isCryptoPayment ? 
