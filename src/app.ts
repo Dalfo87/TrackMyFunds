@@ -11,6 +11,7 @@ import transactionRoutes from './routes/transactions';
 import portfolioRoutes from './routes/portfolio';
 import analyticsRoutes from './routes/analytics';
 import settingsRoutes from './routes/settings';
+import realizedProfitRoutes from './routes/realizedProfits'; // Nuova route
 
 // Carica le variabili d'ambiente
 dotenv.config();
@@ -54,6 +55,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/realized-profits', realizedProfitRoutes); // Nuova route
 
 // Rotta di test
 app.get('/', (req: Request, res: Response) => {
