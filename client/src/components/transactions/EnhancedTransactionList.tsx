@@ -1,4 +1,4 @@
-// src/components/transactions/EnhancedTransactionsList.tsx
+// src/components/transactions/EnhancedTransactionList.tsx
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
@@ -6,7 +6,8 @@ import {
   Paper, Typography, IconButton, Chip, Dialog, DialogTitle, 
   DialogContent, DialogActions, Button, Box, Tooltip, 
   Collapse, Grid, TextField, MenuItem, Select, FormControl, InputLabel,
-  SelectChangeEvent, Badge, InputAdornment, TableSortLabel, TablePagination
+  SelectChangeEvent, InputAdornment, TableSortLabel, TablePagination,
+  CircularProgress
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -42,7 +43,6 @@ import {
   isStablecoin
 } from '../../utils';
 
-
 interface EnhancedTransactionsListProps {
   transactions: any[];
   tabValue: number;
@@ -50,7 +50,7 @@ interface EnhancedTransactionsListProps {
   cryptos?: any[];
 }
 
-// Definizione dei campi ordinabili
+// Definizione dei tipi di ordinamento
 type OrderDirection = 'asc' | 'desc';
 type OrderableField = 'date' | 'cryptoSymbol' | 'quantity' | 'pricePerUnit' | 'totalAmount';
 
@@ -130,7 +130,7 @@ const EnhancedTransactionsList: React.FC<EnhancedTransactionsListProps> = ({
     };
     
     loadRealizedProfits();
-  }, [transactions]);
+  }, [transactions, handleError]);
 
   // Se non ci sono transazioni, mostra un messaggio
   if (!transactions || transactions.length === 0) {
@@ -329,11 +329,6 @@ const EnhancedTransactionsList: React.FC<EnhancedTransactionsListProps> = ({
     // Attributi per transazioni di farming
     const isFarming = transaction.type === TransactionType.FARMING;
     const farmingSourceCrypto = isFarming ? transaction.paymentCurrency : null;
-    
-    // Attributi per vendite a stablecoin
-    const isStablecoinSell = transaction.type === TransactionType.SELL && 
-                            transaction.paymentMethod === PaymentMethod.CRYPTO &&
-                            isStablecoin(transaction.paymentCurrency || '');
     
     return (
       <>
@@ -593,6 +588,9 @@ const EnhancedTransactionsList: React.FC<EnhancedTransactionsListProps> = ({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
           <Typography variant="subtitle1">
             {filteredTransactions.length} transazioni trovate
+            {loadingProfits && (
+              <CircularProgress size={16} sx={{ ml: 1 }} />
+            )}
           </Typography>
           <Box>
             <Button 

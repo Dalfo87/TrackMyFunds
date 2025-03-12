@@ -13,12 +13,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/it';
 import useErrorHandler from '../../hooks/useErrorHandler';
-import { TransactionType, PaymentMethod, STABLECOINS } from '../../utils/transactionTypes';
-
-// Definisci una nuova utilità per verificare se una valuta è una stablecoin
-const isStablecoin = (currency: string): boolean => {
-  return STABLECOINS.includes(currency.toUpperCase());
-};
+import { TransactionType, PaymentMethod, STABLECOINS, isStablecoin } from '../../utils/transactionTypes';
 
 interface TransactionFormProps {
   cryptos: any[];
@@ -184,7 +179,7 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
       // Reimposta lo step attivo
       setActiveStep(TransactionStep.BASIC_INFO);
     }
-  }, [formData.type]); 
+  }, [formData.type, formData.paymentMethod]); 
 
   // Effetto per gestire il cambiamento del metodo di pagamento
   useEffect(() => {
@@ -215,7 +210,7 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
         }));
       }
     }
-  }, [formData.paymentMethod, formData.paymentCurrency, cryptoOptions]);
+  }, [formData.paymentMethod, formData.paymentCurrency, cryptoOptions, stablecoinOptions, fiatCurrencyOptions]);
 
   // Esponi il metodo submitForm attraverso il ref
   useImperativeHandle(ref, () => ({
@@ -621,12 +616,14 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
       )}
       
       <Grid item xs={12} sm={6}>
-        <DatePicker
-          label="Data"
-          value={formData.date}
-          onChange={handleDateChange}
-          slotProps={{ textField: { fullWidth: true } }}
-        />
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="it">
+          <DatePicker
+            label="Data"
+            value={formData.date}
+            onChange={handleDateChange}
+            slotProps={{ textField: { fullWidth: true } }}
+          />
+        </LocalizationProvider>
       </Grid>
       
       {/* Sezione specifica per il farming */}
