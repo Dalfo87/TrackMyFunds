@@ -3,14 +3,15 @@
 import React, { useState, useRef } from 'react';
 import { 
   Grid, Paper, Typography, Button, Box, CircularProgress, 
-  Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions 
+  Tabs, Tab, Dialog, DialogTitle, DialogContent, DialogActions,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useAppContext } from '../context/AppContext';
 import { useNotification } from '../context/NotificationContext';
 import useErrorHandler from '../hooks/useErrorHandler';
-import TransactionsList from '../components/transactions/TransactionsList';
-import TransactionForm, { TransactionFormRef } from '../components/transactions/TransactionForm';
+import EnhancedTransactionsList from '../components/transactions/EnhancedTransactionsList';
+import EnhancedTransactionForm, { TransactionFormRef } from '../components/transactions/EnhancedTransactionForm';
 
 const Transactions: React.FC = () => {
   const { state, fetchTransactions, addTransaction } = useAppContext();
@@ -108,26 +109,21 @@ const Transactions: React.FC = () => {
         </Box>
         
         {displayError && (
-          <Paper 
-            sx={{ 
-              p: 2, 
-              mb: 2, 
-              borderLeft: '4px solid', 
-              borderColor: 'error.main',
-              bgcolor: 'error.dark',
-              color: 'error.contrastText'
-            }}
+          <Alert 
+            severity="error" 
+            sx={{ mb: 2 }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small"
+                onClick={handleRefresh}
+              >
+                Riprova
+              </Button>
+            }
           >
-            <Typography>{displayError}</Typography>
-            <Button 
-              variant="outlined" 
-              sx={{ mt: 1, color: 'white', borderColor: 'white' }}
-              onClick={handleRefresh}
-              size="small"
-            >
-              Riprova
-            </Button>
-          </Paper>
+            {displayError}
+          </Alert>
         )}
         
         <Paper sx={{ width: '100%' }}>
@@ -142,23 +138,23 @@ const Transactions: React.FC = () => {
           </Box>
           
           <Box sx={{ p: 2 }}>
-            <TransactionsList 
+            <EnhancedTransactionsList 
               transactions={transactions} 
               tabValue={tabValue} 
               onRefresh={handleRefresh}
-              cryptos={cryptos} // Passa la lista delle criptovalute al componente
+              cryptos={cryptos}
             />
           </Box>
         </Paper>
       </Grid>
       
-      {/* Dialog per aggiungere transazioni con supporto per tutti i tipi */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      {/* Dialog per aggiungere transazioni con il form migliorato */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           Aggiungi Transazione
         </DialogTitle>
         <DialogContent>
-          <TransactionForm 
+          <EnhancedTransactionForm 
             cryptos={cryptos} 
             onSubmit={handleAddTransaction}
             ref={formRef}
