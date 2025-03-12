@@ -1,104 +1,35 @@
-// src/app.ts
-import express, { Express, Request, Response } from 'express';
+// src/app.ts (aggiornamento)
+import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import connectDB from './config/database';
-import logger from './utils/logger';
+import mongoose from 'mongoose';
+import { config } from './shared/config';
+import { requestLoggerMiddleware } from './shared/middleware/requestLoggerMiddleware';
+import { errorMiddleware } from './shared/middleware/errorMiddleware';
 
-// Importa le routes
-import cryptoRoutes from './routes/cryptos';
-import transactionRoutes from './routes/transactions';
-import portfolioRoutes from './routes/portfolio';
-import analyticsRoutes from './routes/analytics';
-import settingsRoutes from './routes/settings';
-import realizedProfitRoutes from './routes/realizedProfits'; // Nuova route
+// Importa i moduli
+import settingsRoutes from './modules/settings/routes';
+import cryptoRoutes from './modules/crypto/routes';
+// Altri import per altri moduli
 
-// Carica le variabili d'ambiente
-dotenv.config();
+// Inizializza l'app
+const app = express();
 
-// Log di avvio dell'applicazione
-logger.info('======================================');
-logger.info('TrackMy Funds application is starting...');
-logger.info(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
-logger.info(`Data e ora di avvio: ${new Date().toISOString()}`);
-logger.info('======================================');
-
-// Inizializza Express
-const app: Express = express();
-const port = process.env.PORT || 2025;
-
-// Connetti al database
-connectDB()
-  .then(() => logger.info('MongoDB connesso con successo'))
-  .catch(err => {
-    logger.error('Errore durante la connessione a MongoDB:', err);
-    process.exit(1);
-  });
-
-// Middleware
-app.use(cors({
-  origin: 'http://localhost:3000', // URL del frontend
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Middleware globali
+app.use(cors(config.server.cors));
 app.use(express.json());
-
-// Middleware per il logging delle richieste
-app.use((req: Request, res: Response, next) => {
-  logger.info(`${req.method} ${req.url}`);
-  next();
-});
+app.use(requestLoggerMiddleware);
 
 // Routes
-app.use('/api/cryptos', cryptoRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/portfolio', portfolioRoutes);
-app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/realized-profits', realizedProfitRoutes); // Nuova route
+app.use('/api/cryptos', cryptoRoutes);
+// Altre routes per altri moduli
 
-// Rotta di test
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'Benvenuto nell\'API di TrackMy Funds!' });
-});
+// Middleware per la gestione degli errori (deve essere l'ultimo)
+app.use(errorMiddleware);
 
-// Gestione degli errori 404
-app.use((req: Request, res: Response) => {
-  logger.warn(`404 - Route non trovata: ${req.originalUrl}`);
-  res.status(404).json({ message: 'Endpoint non trovato' });
-});
+// Connessione al database
+mongoose.connect(config.database.uri)
+  .then(() => console.log('Connesso a MongoDB'))
+  .catch(err => console.error('Errore nella connessione a MongoDB:', err));
 
-// Middleware di gestione errori
-app.use((err: any, req: Request, res: Response, next: Function) => {
-  logger.error('Errore non gestito:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Errore interno del server',
-    error: process.env.NODE_ENV === 'production' ? 'Si è verificato un errore' : err.message
-  });
-});
-
-// Avvia il server
-app.listen(port, () => {
-  logger.info(`Server in esecuzione su http://localhost:${port}`);
-});
-
-// Gestione delle interruzioni del processo
-process.on('SIGINT', () => {
-  logger.info('Applicazione terminata (SIGINT)');
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  logger.info('Applicazione terminata (SIGTERM)');
-  process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-  logger.error('Eccezione non gestita:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Promessa rifiutata non gestita:', reason);
-});
+export default app;
