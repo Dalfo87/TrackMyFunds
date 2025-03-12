@@ -58,10 +58,12 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
   
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isAirdropType, setIsAirdropType] = useState(false);
+  const [isFarmingType, setIsFarmingType] = useState(false); // Nuova variabile di stato per il farming
   const [isCryptoPayment, setIsCryptoPayment] = useState(false);
   const [cryptoOptions, setCryptoOptions] = useState<CryptoOption[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption | null>(null);
+  const [selectedDestinationCrypto, setSelectedDestinationCrypto] = useState<CryptoOption | null>(null);
   
   // Utilizziamo il hook personalizzato per la gestione degli errori
   const { error: localError } = useErrorHandler('TransactionForm');
@@ -117,14 +119,35 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
           setSelectedCrypto(crypto);
         }
       }
+      
+      // Imposta le variabili di stato in base al tipo di transazione
+      if (transaction.type === 'airdrop') {
+        setIsAirdropType(true);
+        setIsFarmingType(false);
+      } else if (transaction.type === 'farming') {
+        setIsAirdropType(false);
+        setIsFarmingType(true);
+        
+        // Per il farming, trova e seleziona la crypto di destinazione
+        if (transaction.cryptoSymbol) {
+          const crypto = cryptoOptions.find(c => c.symbol === transaction.cryptoSymbol);
+          if (crypto) {
+            setSelectedDestinationCrypto(crypto);
+          }
+        }
+      } else {
+        setIsAirdropType(false);
+        setIsFarmingType(false);
+      }
     }
   }, [transaction, cryptoOptions]);
 
   // Effetto per gestire il cambiamento del tipo di transazione
   useEffect(() => {
-    if (formData.type === 'airdrop' || formData.type === 'farming') {
-      setIsAirdropType(true); // Usiamo la stessa variabile per entrambi, se necessario possiamo rinominarla
-      // Imposta automaticamente prezzo e totale a zero per airdrop e farming
+    if (formData.type === 'airdrop') {
+      setIsAirdropType(true);
+      setIsFarmingType(false);
+      // Imposta automaticamente prezzo e totale a zero per airdrop
       setFormData(prev => ({
         ...prev,
         pricePerUnit: '0',
@@ -132,8 +155,22 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
         paymentMethod: '' as any, // Rimuovi il metodo di pagamento
         paymentCurrency: '' // Rimuovi la valuta di pagamento
       }));
+    } else if (formData.type === 'farming') {
+      setIsAirdropType(false);
+      setIsFarmingType(true);
+      // Imposta automaticamente prezzo e totale a zero per farming
+      setFormData(prev => ({
+        ...prev,
+        pricePerUnit: '0',
+        totalAmount: '0',
+        // Per il farming, manteniamo i campi di metodo e valuta per rappresentare
+        // la crypto di origine (default: crypto stessa)
+        paymentMethod: PaymentMethod.CRYPTO,
+        paymentCurrency: prev.cryptoSymbol || ''
+      }));
     } else {
       setIsAirdropType(false);
+      setIsFarmingType(false);
       // Reimpostare il metodo di pagamento predefinito
       if (!formData.paymentMethod) {
         setFormData(prev => ({
@@ -143,7 +180,17 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
         }));
       }
     }
-  }, [formData.type]);
+  }, [formData.type]); // Rimuoviamo cryptoSymbol per evitare loop infiniti
+
+  // Effetto aggiuntivo per impostare la crypto di origine per il farming quando cambia cryptoSymbol
+  useEffect(() => {
+    if (formData.type === 'farming' && formData.cryptoSymbol && !transaction) {
+      setFormData(prev => ({
+        ...prev,
+        paymentCurrency: formData.cryptoSymbol
+      }));
+    }
+  }, [formData.cryptoSymbol, formData.type, transaction]);
 
   // Effetto per gestire il cambiamento del metodo di pagamento
   useEffect(() => {
@@ -213,7 +260,7 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
     }
     
     // Se non è un airdrop, gestisci i calcoli automatici dei valori
-    if (!isAirdropType && (name === 'quantity' || name === 'pricePerUnit' || name === 'totalAmount')) {
+    if (!isAirdropType && !isFarmingType && (name === 'quantity' || name === 'pricePerUnit' || name === 'totalAmount')) {
       let quantity: number = 0;
       let pricePerUnit: number = 0;
       let totalAmount: number = 0;
@@ -294,8 +341,8 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
       newErrors.quantity = 'Inserisci una quantità valida';
     }
     
-    // Solo per transazioni non airdrop, verifica il prezzo
-    if (!isAirdropType && (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0)) {
+    // Solo per transazioni non airdrop e non farming, verifica il prezzo
+    if (!isAirdropType && !isFarmingType && (!formData.pricePerUnit || parseFloat(formData.pricePerUnit) < 0)) {
       newErrors.pricePerUnit = 'Inserisci un prezzo valido';
     }
   
@@ -335,8 +382,6 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
     
     onSubmit(formattedData);
   };
-  // La funzione submitForm (collegata al ref) resta invariata perché già utilizza validateForm()
-
 
   // Gestisce la selezione della criptovaluta dall'autocomplete
   const handleCryptoChange = (event: React.SyntheticEvent, newValue: CryptoOption | null) => {
@@ -494,7 +539,7 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
               inputProps={{ step: 'any' }}
               error={!!errors.pricePerUnit}
               helperText={errors.pricePerUnit}
-              disabled={isAirdropType}
+              disabled={isAirdropType || isFarmingType}
             />
           </Grid>
           
@@ -507,7 +552,7 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
               value={formData.totalAmount}
               onChange={handleChange}
               inputProps={{ step: 'any' }}
-              disabled={isAirdropType}
+              disabled={isAirdropType || isFarmingType}
             />
           </Grid>
           
@@ -519,6 +564,70 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
               slotProps={{ textField: { fullWidth: true } }}
             />
           </Grid>
+          
+          {/* Sezione specifica per il farming */}
+          {isFarmingType && (
+            <>
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  Dettagli Farming
+                </Typography>
+                <Typography variant="body2" color="textSecondary" paragraph>
+                  Il farming rappresenta criptovalute guadagnate fornendo liquidità o attraverso staking.
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Crypto di origine</InputLabel>
+                  <Select
+                    name="paymentCurrency"
+                    value={formData.paymentCurrency}
+                    onChange={handleSelectChange}
+                    label="Crypto di origine"
+                  >
+                    {/* Mostra tutte le crypto disponibili */}
+                    {cryptoOptions.map(option => (
+                      <MenuItem key={option.symbol} value={option.symbol}>
+                        {option.name} ({option.symbol})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>
+                    La criptovaluta che stai stakando o fornendo come liquidità
+                  </FormHelperText>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <Autocomplete
+                  id="destination-crypto-select"
+                  options={cryptoOptions}
+                  getOptionLabel={(option) => `${option.name} (${option.symbol})`}
+                  value={selectedDestinationCrypto || selectedCrypto}
+                  onChange={(event, newValue) => {
+                    setSelectedDestinationCrypto(newValue);
+                    // La crypto di destinazione diventa la crypto principale della transazione
+                    if (newValue) {
+                      setFormData(prev => ({
+                        ...prev,
+                        cryptoSymbol: newValue.symbol
+                      }));
+                    }
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Crypto Guadagnata"
+                      required
+                      helperText="La criptovaluta che ricevi come reward"
+                    />
+                  )}
+                />
+              </Grid>
+            </>
+          )}
           
           {/* Sezione con metodo di pagamento, visibile per acquisti e vendite */}
           {(formData.type === 'buy' || formData.type === 'sell') && (
@@ -606,9 +715,16 @@ const TransactionForm = forwardRef<TransactionFormRef, TransactionFormProps>(({
           {isAirdropType && (
             <Grid item xs={12}>
               <Typography variant="body2" color="textSecondary">
-                {formData.type === 'airdrop' 
-                  ? "Un airdrop è un'acquisizione gratuita di criptovalute. Verrà registrato come un'acquisizione con costo zero."
-                  : "Il farming rappresenta criptovalute guadagnate fornendo liquidità o attraverso staking. Verrà registrato con costo zero."}
+                Un airdrop è un'acquisizione gratuita di criptovalute. Verrà registrato come un'acquisizione con costo zero.
+              </Typography>
+            </Grid>
+          )}
+
+          {isFarmingType && (
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary">
+                Il farming ti permette di tracciare i reward guadagnati tramite staking o liquidity providing.
+                La crypto di origine indica cosa stai stakando, mentre la crypto guadagnata è ciò che ricevi come reward.
               </Typography>
             </Grid>
           )}

@@ -1,4 +1,4 @@
-// src/pages/Transactions.tsx (modificato)
+// src/pages/Transactions.tsx
 
 import React, { useState, useRef } from 'react';
 import { 
@@ -137,6 +137,7 @@ const Transactions: React.FC = () => {
               <Tab label="Acquisti" />
               <Tab label="Vendite" />
               <Tab label="Airdrop" />
+              <Tab label="Farming" />
             </Tabs>
           </Box>
           

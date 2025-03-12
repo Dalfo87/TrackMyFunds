@@ -1,4 +1,4 @@
-// src/components/transactions/TransactionsList.tsx (modificato)
+// src/components/transactions/TransactionsList.tsx
 
 import React, { useState, useRef } from 'react';
 import { 
@@ -18,9 +18,11 @@ import {
   formatQuantity,
   getTransactionTypeText,
   getTransactionTypeColor,
+  getTransactionTypeIcon,
   getPaymentMethodIcon,
   getPaymentMethodName,
-  PaymentMethod
+  PaymentMethod,
+  TransactionType
 } from '../../utils';
 
 interface TransactionsListProps {
@@ -57,6 +59,7 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
     if (tabValue === 1) return tx.type === 'buy'; // Solo acquisti
     if (tabValue === 2) return tx.type === 'sell'; // Solo vendite
     if (tabValue === 3) return tx.type === 'airdrop'; // Solo airdrop
+    if (tabValue === 4) return tx.type === 'farming'; // Solo farming
     return true;
   });
 
@@ -148,24 +151,38 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
                     label={getTransactionTypeText(tx.type)} 
                     color={getTransactionTypeColor(tx.type)}
                     size="small"
+                    icon={getTransactionTypeIcon(tx.type, { fontSize: "small" }) || undefined}
                   />
                 </TableCell>
                 <TableCell>{tx.cryptoSymbol}</TableCell>
                 <TableCell align="right">{formatQuantity(tx.quantity)}</TableCell>
                 <TableCell align="right">
-                  {tx.type === 'airdrop' 
+                  {tx.type === 'airdrop' || tx.type === 'farming'
                     ? '0' 
                     : formatCurrency(tx.pricePerUnit)
                   }
                 </TableCell>
                 <TableCell align="right">
-                  {tx.type === 'airdrop' 
+                  {tx.type === 'airdrop' || tx.type === 'farming'
                     ? '0' 
                     : formatCurrency(tx.totalAmount)
                   }
                 </TableCell>
                 <TableCell align="right">
-                  {(tx.type === 'buy' || tx.type === 'sell') && tx.paymentMethod ? (
+                  {/* Per le transazioni farming, mostra diversamente il metodo di pagamento */}
+                  {tx.type === 'farming' && tx.paymentMethod ? (
+                    <Tooltip title="Crypto di origine">
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <Chip 
+                          label="Origin" 
+                          size="small" 
+                          color="secondary"
+                          variant="outlined"
+                          sx={{ mr: 1 }}
+                        />
+                      </Box>
+                    </Tooltip>
+                  ) : (tx.type === 'buy' || tx.type === 'sell') && tx.paymentMethod ? (
                     <Tooltip title={getPaymentMethodName(tx.paymentMethod)}>
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {getPaymentMethodIcon(tx.paymentMethod, { fontSize: 'small' })}
@@ -176,7 +193,17 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
                   )}
                 </TableCell>
                 <TableCell align="right">
-                  {(tx.type === 'buy' || tx.type === 'sell') && tx.paymentCurrency ? (
+                  {/* Per le transazioni farming, mostra la crypto di origine */}
+                  {tx.type === 'farming' && tx.paymentCurrency ? (
+                    <Tooltip title={`Crypto di origine: ${tx.paymentCurrency}`}>
+                      <Chip 
+                        label={tx.paymentCurrency} 
+                        size="small" 
+                        color="secondary"
+                        variant="outlined"
+                      />
+                    </Tooltip>
+                  ) : (tx.type === 'buy' || tx.type === 'sell') && tx.paymentCurrency ? (
                     <Chip 
                       label={tx.paymentCurrency} 
                       size="small" 
@@ -230,9 +257,14 @@ const TransactionsList: React.FC<TransactionsListProps> = ({
               <Typography variant="body2">
                 Data: {formatDate(selectedTransaction.date)}
               </Typography>
-              {selectedTransaction.type !== 'airdrop' && (
+              {selectedTransaction.type !== 'airdrop' && selectedTransaction.type !== 'farming' && (
                 <Typography variant="body2">
                   Importo: {formatCurrency(selectedTransaction.totalAmount)}
+                </Typography>
+              )}
+              {selectedTransaction.type === 'farming' && selectedTransaction.paymentCurrency && (
+                <Typography variant="body2">
+                  Crypto di origine: {selectedTransaction.paymentCurrency}
                 </Typography>
               )}
               {selectedTransaction.type === 'buy' && selectedTransaction.paymentMethod && (

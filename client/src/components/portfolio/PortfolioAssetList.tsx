@@ -15,7 +15,9 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  Alert
+  Alert,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AssetDetailsDialog from './AssetDetailsDialog';
@@ -41,6 +43,8 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
   const [orderBy, setOrderBy] = useState<OrderableField>('currentValue');
   const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Nuovo stato per controllare la visualizzazione degli asset con quantità zero
+  const [showZeroQuantity, setShowZeroQuantity] = useState(false);
 
   // Gestisce gli errori
   if (error) {
@@ -51,8 +55,15 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
     );
   }
 
-  // Filtra gli asset in base al tab selezionato
+  // Filtra gli asset in base al tab selezionato e alla quantità
   const filteredAssets = assets.filter(asset => {
+    // Arrotonda la quantità per gestire numeri a virgola mobile
+    const roundedQuantity = parseFloat(asset.quantity.toFixed(8));
+    
+    // Nascondi asset con quantità zero se l'opzione è disattivata
+    if (!showZeroQuantity && roundedQuantity === 0) return false;
+    
+    // Filtro per tab
     if (tabValue === 0) return true; // Tutti gli asset
     if (tabValue === 1) return asset.profitLoss > 0; // Solo in profitto
     if (tabValue === 2) return asset.profitLoss < 0; // Solo in perdita
@@ -93,6 +104,11 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
     setSelectedAsset(null);
   };
 
+  // Toggle per mostrare/nascondere gli asset con quantità zero
+  const handleToggleZeroQuantity = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowZeroQuantity(event.target.checked);
+  };
+
   if (!assets || assets.length === 0) {
     return (
       <Alert severity="info">
@@ -103,6 +119,19 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
 
   return (
     <>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <FormControlLabel
+          control={
+            <Switch 
+              checked={showZeroQuantity} 
+              onChange={handleToggleZeroQuantity} 
+              color="primary"
+            />
+          }
+          label="Mostra asset con quantità zero"
+        />
+      </Box>
+      
       <TableContainer component={Paper} sx={{ maxHeight: 440, overflow: 'auto' }}>
         <Table stickyHeader size="medium">
           <TableHead>
@@ -181,7 +210,18 @@ const PortfolioAssetsList: React.FC<PortfolioAssetsListProps> = ({ assets, tabVa
                     )}
                   </Box>
                 </TableCell>
-                <TableCell align="right">{formatQuantity(asset.quantity)}</TableCell>
+                <TableCell align="right">
+                  {formatQuantity(asset.quantity)}
+                  {parseFloat(asset.quantity.toFixed(8)) === 0 && (
+                    <Chip 
+                      label="Zero" 
+                      size="small" 
+                      color="default" 
+                      variant="outlined"
+                      sx={{ ml: 1, fontSize: '0.6rem' }}
+                    />
+                  )}
+                </TableCell>
                 <TableCell align="right">{formatCurrency(asset.currentPrice)}</TableCell>
                 <TableCell align="right">{formatCurrency(asset.averagePrice)}</TableCell>
                 <TableCell align="right">{formatCurrency(asset.currentValue)}</TableCell>

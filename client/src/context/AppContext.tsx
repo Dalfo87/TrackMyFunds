@@ -252,6 +252,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   // Aggiorna la funzione addTransaction nel AppContext.tsx per gestire il tipo farming
+// Aggiorna la funzione addTransaction nel AppContext.tsx per gestire il tipo farming
 const addTransaction = async (transaction: any): Promise<boolean> => {
   try {
     if (transaction.type === 'airdrop') {

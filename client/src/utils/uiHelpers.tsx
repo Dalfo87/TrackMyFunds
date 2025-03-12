@@ -1,4 +1,4 @@
-// client/src/utils/uiHelpers.ts
+// client/src/utils/uiHelpers.tsx
 import React from 'react';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
@@ -7,15 +7,17 @@ import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import SpaIcon from '@mui/icons-material/Spa'; // Icona per farming/staking
 
-// Enum per i tipi di transazione (copiato da Transaction.ts)
+// Enum per i tipi di transazione
 export enum TransactionType {
   BUY = 'buy',
   SELL = 'sell',
-  AIRDROP = 'airdrop'
+  AIRDROP = 'airdrop',
+  FARMING = 'farming'
 }
 
-// Enum per i metodi di pagamento (copiato da Transaction.ts)
+// Enum per i metodi di pagamento
 export enum PaymentMethod {
   BANK_TRANSFER = 'bank_transfer',
   CREDIT_CARD = 'credit_card',
@@ -79,7 +81,7 @@ export const getPaymentMethodName = (method?: string): string => {
  * @param type - Il tipo di transazione
  * @returns Stringa con il colore Material UI
  */
-export const getTransactionTypeColor = (type?: string): 'success' | 'error' | 'info' | 'default' => {
+export const getTransactionTypeColor = (type?: string): 'success' | 'error' | 'info' | 'secondary' | 'default' => {
   if (!type) return 'default';
   
   switch (type) {
@@ -89,6 +91,8 @@ export const getTransactionTypeColor = (type?: string): 'success' | 'error' | 'i
       return 'error';
     case TransactionType.AIRDROP:
       return 'info';
+    case TransactionType.FARMING:
+      return 'secondary'; // Colore viola per il farming
     default:
       return 'default';
   }
@@ -109,6 +113,8 @@ export const getTransactionTypeText = (type?: string): string => {
       return 'Vendita';
     case TransactionType.AIRDROP:
       return 'Airdrop';
+    case TransactionType.FARMING:
+      return 'Farming';
     default:
       return type;
   }
@@ -133,4 +139,27 @@ export const getProfitLossIcon = (value: number, props = {}) => {
  */
 export const getProfitLossColor = (value: number): string => {
   return value >= 0 ? 'success.main' : 'error.main';
+};
+
+/**
+ * Restituisce l'icona per il tipo di transazione
+ * @param type - Il tipo di transazione
+ * @param props - Proprietà aggiuntive da passare all'icona
+ * @returns Componente icona
+ */
+export const getTransactionTypeIcon = (type?: string, props = {}) => {
+  if (!type) return null;
+  
+  switch (type) {
+    case TransactionType.BUY:
+      return <TrendingUpIcon color="success" {...props} />;
+    case TransactionType.SELL:
+      return <TrendingDownIcon color="error" {...props} />;
+    case TransactionType.FARMING:
+      return <SpaIcon color="secondary" {...props} />; // Icona specifica per farming
+    case TransactionType.AIRDROP:
+      return <CurrencyExchangeIcon color="info" {...props} />;
+    default:
+      return <HelpOutlineIcon {...props} />;
+  }
 };

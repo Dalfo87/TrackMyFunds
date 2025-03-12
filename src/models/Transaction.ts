@@ -7,7 +7,7 @@ export enum TransactionType {
   BUY = 'buy',
   SELL = 'sell',
   AIRDROP = 'airdrop',
-  FARMING = 'farming'  // Nuovo tipo di transazione
+  FARMING = 'farming'  // Tipo di transazione per farming
 }
 
 // Definiamo i metodi di pagamento possibili
@@ -115,45 +115,57 @@ const TransactionSchema: Schema = new Schema({
   timestamps: true
 });
 
-// Middleware pre-save per calcolare automaticamente il totale
-TransactionSchema.pre('save', function(next) {
-  // Se totalAmount non è specificato e type non è AIRDROP o FARMING, lo calcoliamo
-  if (!this.totalAmount && this.quantity && this.pricePerUnit && 
-      this.type !== TransactionType.AIRDROP && this.type !== TransactionType.FARMING) {
-    this.totalAmount = Number(this.quantity) * Number(this.pricePerUnit);
+// Middleware pre-save ottimizzato e corretto per gestire correttamente i tipi di transazione
+TransactionSchema.pre('save', function(this: ITransaction & Document, next) {
+  // Normalizza i valori
+  this.cryptoSymbol = this.cryptoSymbol.trim().toUpperCase();
+  if (this.paymentCurrency) {
+    this.paymentCurrency = this.paymentCurrency.trim().toUpperCase();
   }
   
-  // Per gli airdrop e farming, impostiamo automaticamente pricePerUnit e totalAmount a 0
+  // 1. Gestione dei prezzi e importi per transazioni a costo zero
   if (this.type === TransactionType.AIRDROP || this.type === TransactionType.FARMING) {
     this.pricePerUnit = 0;
     this.totalAmount = 0;
-    
-    // Per gli airdrop e farming, non è rilevante il metodo di pagamento
+  } 
+  // 2. Calcolo automatico dell'importo totale per transazioni con prezzo
+  else if (!this.totalAmount && this.quantity && this.pricePerUnit) {
+    this.totalAmount = Number(this.quantity) * Number(this.pricePerUnit);
+  }
+  
+  // 3. Gestione dei campi per metodo di pagamento in base al tipo di transazione
+  
+  // 3.1 Per airdrop: nessun metodo di pagamento rilevante
+  if (this.type === TransactionType.AIRDROP) {
     this.paymentMethod = undefined;
     this.paymentCurrency = undefined;
   }
-  
-  // Ci assicuriamo che le vendite abbiano sempre un metodo di pagamento e una valuta
-  if (this.type === TransactionType.SELL) {
-    // Se manca il metodo di pagamento, imposta quello di default
+  // 3.2 Per farming: manteniamo metodo e valuta per tracciare la crypto di origine
+  else if (this.type === TransactionType.FARMING) {
+    // Imposta sempre il metodo di pagamento a CRYPTO per il farming
+    this.paymentMethod = PaymentMethod.CRYPTO;
+    
+    // Se manca la valuta di origine, usa la stessa della crypto guadagnata
+    if (!this.paymentCurrency) {
+      this.paymentCurrency = this.cryptoSymbol;
+    }
+  }
+  // 3.3 Per vendite: assicuriamo che abbiano metodo e valuta
+  else if (this.type === TransactionType.SELL) {
     if (!this.paymentMethod) {
       this.paymentMethod = PaymentMethod.CRYPTO;
     }
     
-    // Se manca la valuta, imposta quella di default
     if (!this.paymentCurrency) {
-      this.paymentCurrency = 'USDT';
+      this.paymentCurrency = 'USDT'; // Default per le vendite
     }
   }
   
-  // Se il metodo di pagamento è crypto, assicuriamoci che sia specificata una valuta crypto
+  // 3.4 Per tutti i tipi: assicuriamo coerenza tra metodo e valuta
   if (this.paymentMethod === PaymentMethod.CRYPTO && !this.paymentCurrency) {
-    this.paymentCurrency = 'USDT'; // Default a USDT se non specificato
-  }
-
-  // Se il metodo di pagamento non è crypto, impostiamo la valuta di default se non specificata
-  if (this.paymentMethod !== PaymentMethod.CRYPTO && !this.paymentCurrency) {
-    this.paymentCurrency = 'USD';
+    this.paymentCurrency = 'USDT'; // Default per pagamenti crypto
+  } else if (this.paymentMethod !== PaymentMethod.CRYPTO && !this.paymentCurrency) {
+    this.paymentCurrency = 'USD'; // Default per pagamenti non-crypto
   }
   
   console.log(`Pre-save transaction: Type=${this.type}, Symbol=${this.cryptoSymbol}, PaymentMethod=${this.paymentMethod}, PaymentCurrency=${this.paymentCurrency}`);
