@@ -1,4 +1,4 @@
-// src/app.ts (aggiornamento con nuovo modulo realizedprofit)
+// src/app.ts (versione aggiornata con tutti i moduli)
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -11,8 +11,8 @@ import settingsRoutes from './modules/settings/routes';
 import cryptoRoutes from './modules/crypto/routes';
 import transactionsRoutes from './modules/transactions/routes';
 import portfolioRoutes from './modules/portfolio/routes'; 
-import realizedprofitRoutes from './modules/realizedProfit/routes'; // Nuovo modulo realizedprofit
-// Altri import per altri moduli
+import realizedprofitRoutes from './modules/realizedProfit/routes';
+import analyticsRoutes from './modules/analytics/routes'; // Nuovo modulo analytics
 
 // Inizializza l'app
 const app = express();
@@ -27,8 +27,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/cryptos', cryptoRoutes);
 app.use('/api/transactions', transactionsRoutes);
 app.use('/api/portfolio', portfolioRoutes);
-app.use('/api/realized-profits', realizedprofitRoutes); // Aggiungi il nuovo modulo
-// Altre routes per altri moduli
+app.use('/api/realized-profits', realizedprofitRoutes);
+app.use('/api/analytics', analyticsRoutes); // Nuova route per analytics
 
 // Middleware per la gestione degli errori (deve essere l'ultimo)
 app.use(errorMiddleware);
