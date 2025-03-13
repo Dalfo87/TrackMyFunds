@@ -1,4 +1,4 @@
-// src/app.ts (aggiornamento)
+// src/app.ts (aggiornamento con nuovo modulo realizedprofit)
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
@@ -10,7 +10,8 @@ import { errorMiddleware } from './shared/middleware/errorMiddleware';
 import settingsRoutes from './modules/settings/routes';
 import cryptoRoutes from './modules/crypto/routes';
 import transactionsRoutes from './modules/transactions/routes';
-import portfolioRoutes from './modules/portfolio/routes'; // Nuovo modulo portfolio
+import portfolioRoutes from './modules/portfolio/routes'; 
+import realizedprofitRoutes from './modules/realizedProfit/routes'; // Nuovo modulo realizedprofit
 // Altri import per altri moduli
 
 // Inizializza l'app
@@ -25,7 +26,8 @@ app.use(requestLoggerMiddleware);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/cryptos', cryptoRoutes);
 app.use('/api/transactions', transactionsRoutes);
-app.use('/api/portfolio', portfolioRoutes); // Aggiungi il nuovo modulo
+app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/realized-profits', realizedprofitRoutes); // Aggiungi il nuovo modulo
 // Altre routes per altri moduli
 
 // Middleware per la gestione degli errori (deve essere l'ultimo)
