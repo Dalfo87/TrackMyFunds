@@ -50,7 +50,7 @@ if (require.main === module) {
   updateCryptoPrices()
     .then(result => {
       if (result.success) {
-        console.log(`✅ Aggiornamento completato con successo: ${result.updated} aggiornate, ${result.added} aggiunte`);
+        console.log(`✅ Aggiornamento completato con successo: ${(result as { updated: number; added: number }).updated} aggiornate, ${(result as { updated: number; added: number }).added} aggiunte`);
       } else {
         console.error(`❌ Aggiornamento fallito: ${result.error}`);
       }

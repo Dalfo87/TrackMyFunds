@@ -1,11 +1,11 @@
 // src/shared/repositories/baseRepository.ts
-import mongoose, { Document, Model } from 'mongoose';
-import { FilterOptions, PaginationOptions } from '../types';
+import mongoose, { Document, Model, FilterQuery } from 'mongoose';
+import { PaginationOptions } from '../types/common.types';
 
 export abstract class BaseRepository<T extends Document> {
   constructor(protected model: Model<T>) {}
 
-  async findAll(filter: FilterOptions = {}, pagination?: PaginationOptions): Promise<T[]> {
+  async findAll(filter: FilterQuery<T> = {}, pagination?: PaginationOptions): Promise<T[]> {
     let query = this.model.find(filter);
     
     if (pagination) {

@@ -1,9 +1,11 @@
 // src/modules/settings/services/settings.service.ts
 import { SettingsRepository } from '../repositories/settings.repository';
 import { ISettings } from '../models/settings.model';
-import { UpdateSettingsDto } from '../dtos/update-settings.dto';
-import { ApiKeyDto } from '../dtos/api-key.dto';
-import { CategoryDto } from '../dtos/category.dto';
+import { 
+  UpdateSettingsDto,
+  ApiKeyDto,
+  CategoryDto 
+} from '../dtos/update-settings.dto'; // Import dal nuovo file consolidato
 import { Logger } from '../../../shared/utils/logger';
 import { ErrorHandler, ApiError } from '../../../shared/utils/errorHandler';
 

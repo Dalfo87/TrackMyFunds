@@ -1,6 +1,7 @@
 // src/modules/transactions/models/transaction.model.ts
 import mongoose, { Schema, Document } from 'mongoose';
-import { TransactionType, PaymentMethod, STABLECOINS } from '../../../shared/types/transaction.types';
+import { TransactionType, PaymentMethod } from '../../../shared/types/transaction.types';
+import { STABLECOINS } from '../../../shared/constants/crypto.constants';
 
 export interface ITransaction extends Document {
   user: string;               // ID dell'utente

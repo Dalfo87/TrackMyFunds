@@ -1,9 +1,7 @@
 // src/modules/crypto/services/crypto.service.ts
 import { CryptoRepository } from '../repositories/crypto.repository';
 import { CoinGeckoService } from './coinGecko.service';
-import { CreateCryptoDto } from '../dtos/create-crypto.dto';
-import { UpdateCryptoDto } from '../dtos/update-crypto.dto';
-import { SearchCryptoDto } from '../dtos/search-crypto.dto';
+import { CreateCryptoDto, UpdateCryptoDto, SearchCryptoDto } from '../dtos/crypto.dtos';
 import { ICrypto } from '../models/crypto.model';
 import { Logger } from '../../../shared/utils/logger';
 import { ApiError } from '../../../shared/utils/errorHandler';
@@ -88,10 +86,17 @@ export class CryptoService {
         throw new ApiError(404, `Criptovaluta con simbolo ${symbol} non trovata`);
       }
       
-      return await this.cryptoRepository.update(crypto.id, {
+      const updatedCrypto = await this.cryptoRepository.update(crypto.id, {
         ...updateDto,
         lastUpdated: new Date()
       });
+      
+      // Verifica che l'aggiornamento sia riuscito
+      if (!updatedCrypto) {
+        throw new ApiError(500, `Errore nell'aggiornamento della criptovaluta ${symbol}`);
+      }
+      
+      return updatedCrypto;
     } catch (error) {
       Logger.error(`Errore nell'aggiornamento della criptovaluta ${symbol}:`, error);
       

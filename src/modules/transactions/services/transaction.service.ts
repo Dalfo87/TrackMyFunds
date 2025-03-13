@@ -8,7 +8,7 @@ import { Logger } from '../../../shared/utils/logger';
 import { TransactionType, PaymentMethod } from '../../../shared/types/transaction.types';
 import { STABLECOINS } from '../../../shared/constants/crypto.constants';
 import { Portfolio } from '../../../modules/portfolio/models/portfolio.model';
-import { RealizedProfit } from '../../../modules/realizedprofit/models/realizedProfit.model';
+import { RealizedProfit } from '../../../modules/realizedProfit/models/realizedProfit.model';
 
 export class TransactionService {
   constructor(private transactionRepository: TransactionRepository) {}
