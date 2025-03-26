@@ -1,5 +1,28 @@
-// src/context/reducers/settingsReducer.js
-export const initialSettingsState = {
+// src/context/reducers/settingsReducer.ts
+import { Action } from './index';
+
+// Definizione del tipo di stato per le impostazioni
+export interface SettingsState {
+  theme: string;
+  language: string;
+  notifications: {
+    email: boolean;
+    push: boolean;
+    frequency: string;
+  };
+  privacy: {
+    shareData: boolean;
+    cookiePreferences: string;
+  };
+  display: {
+    fontSize: string;
+    compactMode: boolean;
+    highContrast: boolean;
+  };
+}
+
+// Stato iniziale per le impostazioni
+export const initialSettingsState: SettingsState = {
   theme: 'light',          // tema: light/dark
   language: 'it',          // lingua dell'interfaccia
   notifications: {
@@ -18,16 +41,18 @@ export const initialSettingsState = {
   }
 };
 
-export const SETTINGS_ACTIONS = {
-  CHANGE_THEME: 'settings/changeTheme',
-  CHANGE_LANGUAGE: 'settings/changeLanguage',
-  UPDATE_NOTIFICATION_SETTINGS: 'settings/updateNotificationSettings',
-  UPDATE_PRIVACY_SETTINGS: 'settings/updatePrivacySettings',
-  UPDATE_DISPLAY_SETTINGS: 'settings/updateDisplaySettings',
-  RESET_SETTINGS: 'settings/resetToDefaults'
-};
+// Tipi di azioni per le impostazioni
+export enum SETTINGS_ACTIONS {
+  CHANGE_THEME = 'settings/changeTheme',
+  CHANGE_LANGUAGE = 'settings/changeLanguage',
+  UPDATE_NOTIFICATION_SETTINGS = 'settings/updateNotificationSettings',
+  UPDATE_PRIVACY_SETTINGS = 'settings/updatePrivacySettings',
+  UPDATE_DISPLAY_SETTINGS = 'settings/updateDisplaySettings',
+  RESET_SETTINGS = 'settings/resetToDefaults'
+}
 
-export default function settingsReducer(state = initialSettingsState, action) {
+// Reducer per le impostazioni
+export default function settingsReducer(state: SettingsState = initialSettingsState, action: Action): SettingsState {
   switch (action.type) {
     case SETTINGS_ACTIONS.CHANGE_THEME:
       return {

@@ -1,9 +1,30 @@
-// src/hooks/useUser.js
+// src/hooks/useUser.ts
 import { useAppContext } from '../context/AppContext';
 import { selectUser, selectIsAuthenticated, selectUserLoading } from '../context/selectors';
 import { loginRequest, loginSuccess, loginFailure, logout, updateProfile } from '../context/actions';
 
-export function useUser() {
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  [key: string]: any;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface UseUserReturn {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (credentials: LoginCredentials) => Promise<User>;
+  logout: () => void;
+  updateProfile: (data: Partial<User>) => void;
+}
+
+export function useUser(): UseUserReturn {
   const { state, dispatch } = useAppContext();
   
   const user = selectUser(state);
@@ -11,7 +32,7 @@ export function useUser() {
   const isLoading = selectUserLoading(state);
   
   // Funzioni asincrone che utilizzano dispatch
-  const login = async (credentials) => {
+  const login = async (credentials: LoginCredentials): Promise<User> => {
     dispatch(loginRequest());
     try {
       // Simulazione chiamata API
@@ -26,7 +47,7 @@ export function useUser() {
       dispatch(loginSuccess(data.user));
       return data.user;
     } catch (error) {
-      dispatch(loginFailure(error.message));
+      dispatch(loginFailure((error as Error).message));
       throw error;
     }
   };
@@ -37,6 +58,6 @@ export function useUser() {
     isLoading,
     login,
     logout: () => dispatch(logout()),
-    updateProfile: (data) => dispatch(updateProfile(data))
+    updateProfile: (data: Partial<User>) => dispatch(updateProfile(data))
   };
 }

@@ -1,4 +1,4 @@
-// src/hooks/useSettings.js
+// src/hooks/useSettings.ts
 import { useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
@@ -18,7 +18,46 @@ import {
   resetSettings 
 } from '../context/actions';
 
-export function useSettings() {
+interface DisplaySettings {
+  fontSize: string;
+  compactMode: boolean;
+  highContrast: boolean;
+}
+
+interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  frequency: string;
+}
+
+interface PrivacySettings {
+  shareData: boolean;
+  cookiePreferences: string;
+}
+
+interface Settings {
+  theme: string;
+  language: string;
+  notifications: NotificationSettings;
+  privacy: PrivacySettings;
+  display: DisplaySettings;
+}
+
+interface UseSettingsReturn {
+  theme: string;
+  language: string;
+  notificationSettings: NotificationSettings;
+  privacySettings: PrivacySettings;
+  displaySettings: DisplaySettings;
+  setTheme: (newTheme: string) => void;
+  setLanguage: (newLanguage: string) => void;
+  updateNotifications: (settings: Partial<NotificationSettings>) => void;
+  updatePrivacy: (settings: Partial<PrivacySettings>) => void;
+  updateDisplay: (settings: Partial<DisplaySettings>) => void;
+  restoreDefaults: () => void;
+}
+
+export function useSettings(): UseSettingsReturn {
   const { state, dispatch } = useAppContext();
   
   // Selettori che estraggono valori dallo stato
@@ -34,7 +73,7 @@ export function useSettings() {
     const savedSettings = localStorage.getItem('app_settings');
     if (savedSettings) {
       try {
-        const parsedSettings = JSON.parse(savedSettings);
+        const parsedSettings = JSON.parse(savedSettings) as Settings;
         // Aggiorna ogni sezione di impostazioni individualmente
         dispatch(changeTheme(parsedSettings.theme || theme));
         dispatch(changeLanguage(parsedSettings.language || language));
@@ -59,11 +98,11 @@ export function useSettings() {
   }, [allSettings]);
   
   // Action dispatcher
-  const setTheme = (newTheme) => dispatch(changeTheme(newTheme));
-  const setLanguage = (newLanguage) => dispatch(changeLanguage(newLanguage));
-  const updateNotifications = (settings) => dispatch(updateNotificationSettings(settings));
-  const updatePrivacy = (settings) => dispatch(updatePrivacySettings(settings));
-  const updateDisplay = (settings) => dispatch(updateDisplaySettings(settings));
+  const setTheme = (newTheme: string) => dispatch(changeTheme(newTheme));
+  const setLanguage = (newLanguage: string) => dispatch(changeLanguage(newLanguage));
+  const updateNotifications = (settings: Partial<NotificationSettings>) => dispatch(updateNotificationSettings(settings));
+  const updatePrivacy = (settings: Partial<PrivacySettings>) => dispatch(updatePrivacySettings(settings));
+  const updateDisplay = (settings: Partial<DisplaySettings>) => dispatch(updateDisplaySettings(settings));
   const restoreDefaults = () => dispatch(resetSettings());
   
   // Applica tema al documento

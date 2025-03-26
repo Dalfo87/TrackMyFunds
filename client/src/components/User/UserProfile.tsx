@@ -1,8 +1,13 @@
-// src/components/User/UserProfile.js
+// src/components/User/UserProfile.tsx
 import React from 'react';
 import { useUser } from '../../hooks/useUser';
 
-function UserProfile() {
+interface User {
+  name: string;
+  email: string;
+}
+
+const UserProfile: React.FC = () => {
   const { user, isAuthenticated, isLoading, logout, updateProfile } = useUser();
   
   if (isLoading) return <div>Caricamento...</div>;
@@ -12,7 +17,7 @@ function UserProfile() {
   }
   
   const handleUpdateName = () => {
-    const newName = prompt('Inserisci nuovo nome:', user.name);
+    const newName = prompt('Inserisci nuovo nome:', user?.name);
     if (newName) {
       updateProfile({ name: newName });
     }
@@ -21,12 +26,12 @@ function UserProfile() {
   return (
     <div className="user-profile">
       <h2>Profilo Utente</h2>
-      <p>Nome: {user.name}</p>
-      <p>Email: {user.email}</p>
+      <p>Nome: {user?.name}</p>
+      <p>Email: {user?.email}</p>
       <button onClick={handleUpdateName}>Modifica Nome</button>
       <button onClick={logout}>Logout</button>
     </div>
   );
-}
+};
 
 export default UserProfile;

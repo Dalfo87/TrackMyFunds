@@ -1,10 +1,27 @@
-// src/components/Settings/SettingsPanel.js
+// src/components/Settings/SettingsPanel.tsx
 import React from 'react';
 import { useSettings } from '../../hooks/useSettings';
 import ThemeSelector from './ThemeSelector';
 import LanguageSelector from './LanguageSelector';
 
-function SettingsPanel() {
+interface DisplaySettings {
+  fontSize: string;
+  compactMode: boolean;
+  highContrast: boolean;
+}
+
+interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  frequency: string;
+}
+
+interface PrivacySettings {
+  shareData: boolean;
+  cookiePreferences: string;
+}
+
+const SettingsPanel: React.FC = () => {
   const { 
     notificationSettings, 
     privacySettings, 
@@ -14,7 +31,7 @@ function SettingsPanel() {
     updateDisplay,
     restoreDefaults
   } = useSettings();
-
+  
   return (
     <div className="settings-panel">
       <h2>Impostazioni</h2>
@@ -138,6 +155,6 @@ function SettingsPanel() {
       </div>
     </div>
   );
-}
+};
 
 export default SettingsPanel;
