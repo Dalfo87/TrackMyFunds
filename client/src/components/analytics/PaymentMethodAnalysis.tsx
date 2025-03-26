@@ -18,7 +18,7 @@ import {
   Button
 } from '@mui/material';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { analyticsApi } from '../../services/api';
+import { analyticsApi } from '../../services/apiService';
 import { useNotification } from '../../context/NotificationContext';
 import useErrorHandler from '../../hooks/useErrorHandler';
 import { 

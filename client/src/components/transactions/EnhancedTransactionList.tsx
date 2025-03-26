@@ -25,7 +25,7 @@ import SpaIcon from '@mui/icons-material/Spa';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import LinkIcon from '@mui/icons-material/Link';
 
-import { transactionApi, realizedProfitApi } from '../../services/enhancedApi';
+import { transactionApi, realizedProfitApi } from '../../services/apiService';
 import { useNotification } from '../../context/NotificationContext';
 import useErrorHandler from '../../hooks/useErrorHandler';
 import EnhancedTransactionForm, { TransactionFormRef } from './EnhancedTransactionForm';

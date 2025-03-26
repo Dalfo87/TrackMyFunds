@@ -12,6 +12,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import 'dayjs/locale/it';
+import { cryptoApi } from '../../services/apiService';
 import useErrorHandler from '../../hooks/useErrorHandler';
 import { TransactionType, PaymentMethod, STABLECOINS, isStablecoin } from '../../utils/transactionTypes';
 
@@ -71,7 +72,7 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
   const [selectedSourceCrypto, setSelectedSourceCrypto] = useState<CryptoOption | null>(null);
   
   // Utilizziamo il hook personalizzato per la gestione degli errori
-  const { error: localError } = useErrorHandler('EnhancedTransactionForm');
+  const { error: localError, withErrorHandling } = useErrorHandler('EnhancedTransactionForm');
 
   // Lista di stablecoin comuni
   const stablecoinOptions = STABLECOINS.map(symbol => ({ 
@@ -87,16 +88,34 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
     { value: 'CHF', label: 'Swiss Franc (CHF)' }
   ];
 
-  // Prepara le opzioni per l'autocomplete
+  // Carica la lista completa delle criptovalute all'avvio
   useEffect(() => {
-    if (cryptos && cryptos.length > 0) {
-      const options = cryptos.map(crypto => ({
-        symbol: crypto.symbol,
-        name: crypto.name
-      }));
-      setCryptoOptions(options);
-    }
-  }, [cryptos]);
+    const fetchCryptos = async () => {
+      if (cryptos && cryptos.length > 0) {
+        // Se le criptovalute sono già fornite come prop, usale
+        const options = cryptos.map(crypto => ({
+          symbol: crypto.symbol,
+          name: crypto.name
+        }));
+        setCryptoOptions(options);
+      } else {
+        // Altrimenti, caricale dall'API
+        await withErrorHandling(
+          async () => {
+            const response = await cryptoApi.getAll();
+            const options = response.data.map((crypto: any) => ({
+              symbol: crypto.symbol,
+              name: crypto.name
+            }));
+            setCryptoOptions(options);
+          },
+          'fetchCryptos'
+        );
+      }
+    };
+
+    fetchCryptos();
+  }, [cryptos, withErrorHandling]);
 
   // Inizializza il form con i dati della transazione esistente se disponibile
   useEffect(() => {
@@ -113,11 +132,11 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
         category: transaction.category || '',
         paymentMethod: transaction.paymentMethod || PaymentMethod.BANK_TRANSFER,
         paymentCurrency: transaction.paymentCurrency || 'EUR',
-        sourceCryptoSymbol: transaction.paymentCurrency || '' // Utilizziamo paymentCurrency per sourceCryptoSymbol nel farming
+        sourceCryptoSymbol: transaction.sourceCryptoSymbol || '' // Campo per farming
       });
 
       // Trova e seleziona la crypto corrente
-      if (transaction.cryptoSymbol) {
+      if (transaction.cryptoSymbol && cryptoOptions.length > 0) {
         const crypto = cryptoOptions.find(c => c.symbol === transaction.cryptoSymbol);
         if (crypto) {
           setSelectedCrypto(crypto);
@@ -125,8 +144,8 @@ const EnhancedTransactionForm = forwardRef<TransactionFormRef, TransactionFormPr
       }
       
       // Se si tratta di farming, imposta anche la crypto di origine
-      if (transaction.type === TransactionType.FARMING && transaction.paymentCurrency) {
-        const sourceCrypto = cryptoOptions.find(c => c.symbol === transaction.paymentCurrency);
+      if (transaction.type === TransactionType.FARMING && transaction.sourceCryptoSymbol) {
+        const sourceCrypto = cryptoOptions.find(c => c.symbol === transaction.sourceCryptoSymbol);
         if (sourceCrypto) {
           setSelectedSourceCrypto(sourceCrypto);
         }

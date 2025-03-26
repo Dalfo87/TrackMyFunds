@@ -1,8 +1,7 @@
 // src/context/AppContext.tsx
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { cryptoApi, portfolioApi, transactionApi } from '../services/api';
-import { logError, getErrorMessage } from '../utils';
+import api, { cryptoApi, portfolioApi, transactionApi, logApiError } from '../services/apiService';
 
 // Definizione dello stato
 interface AppState {
@@ -195,11 +194,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       const response = await portfolioApi.getValue();
       dispatch({ type: 'FETCH_PORTFOLIO_SUCCESS', payload: response.data });
-    } catch (error) {
-      logError(error, 'AppContext:fetchPortfolio');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:fetchPortfolio');
       dispatch({ 
         type: 'FETCH_PORTFOLIO_FAILURE', 
-        payload: getErrorMessage(error) 
+        payload: error.message || 'Errore nel caricamento del portafoglio'
       });
     }
   };
@@ -210,11 +209,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       const response = await cryptoApi.getAll();
       dispatch({ type: 'FETCH_CRYPTOS_SUCCESS', payload: response.data });
-    } catch (error) {
-      logError(error, 'AppContext:fetchCryptos');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:fetchCryptos');
       dispatch({ 
         type: 'FETCH_CRYPTOS_FAILURE', 
-        payload: getErrorMessage(error) 
+        payload: error.message || 'Errore nel caricamento delle criptovalute'
       });
     }
   };
@@ -226,12 +225,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       dispatch({ type: 'UPDATE_CRYPTO_PRICES_SUCCESS', payload: new Date() });
       // Reload data after price update
       await Promise.all([fetchCryptos(), fetchPortfolio()]);
-    } catch (error) {
-      logError(error, 'AppContext:updateCryptoPrices');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:updateCryptoPrices');
       // Show error in cryptos section
       dispatch({ 
         type: 'FETCH_CRYPTOS_FAILURE', 
-        payload: getErrorMessage(error) 
+        payload: error.message || 'Errore nell\'aggiornamento dei prezzi'
       });
     }
   };
@@ -242,35 +241,34 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       const response = await transactionApi.getAll();
       dispatch({ type: 'FETCH_TRANSACTIONS_SUCCESS', payload: response.data });
-    } catch (error) {
-      logError(error, 'AppContext:fetchTransactions');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:fetchTransactions');
       dispatch({ 
         type: 'FETCH_TRANSACTIONS_FAILURE', 
-        payload: getErrorMessage(error) 
+        payload: error.message || 'Errore nel caricamento delle transazioni'
       });
     }
   };
 
-  // Aggiorna la funzione addTransaction nel AppContext.tsx per gestire il tipo farming
-// Aggiorna la funzione addTransaction nel AppContext.tsx per gestire il tipo farming
-const addTransaction = async (transaction: any): Promise<boolean> => {
-  try {
-    if (transaction.type === 'airdrop') {
-      await transactionApi.recordAirdrop(transaction);
-    } else if (transaction.type === 'farming') {
-      await transactionApi.recordFarming(transaction);
-    } else {
-      await transactionApi.add(transaction);
+  // Add transaction
+  const addTransaction = async (transaction: any): Promise<boolean> => {
+    try {
+      if (transaction.type === 'airdrop') {
+        await transactionApi.recordAirdrop(transaction);
+      } else if (transaction.type === 'farming') {
+        await transactionApi.recordFarming(transaction);
+      } else {
+        await transactionApi.add(transaction);
+      }
+      
+      // Refresh data after adding transaction
+      await Promise.all([fetchTransactions(), fetchPortfolio()]);
+      return true;
+    } catch (error: any) {
+      logApiError(error, 'AppContext:addTransaction');
+      return false;
     }
-    
-    // Refresh data after adding transaction
-    await Promise.all([fetchTransactions(), fetchPortfolio()]);
-    return true;
-  } catch (error) {
-    logError(error, 'AppContext:addTransaction');
-    return false;
-  }
-};
+  };
 
   // Update transaction
   const updateTransaction = async (id: string, transaction: any): Promise<boolean> => {
@@ -280,8 +278,8 @@ const addTransaction = async (transaction: any): Promise<boolean> => {
       // Refresh data after updating transaction
       await Promise.all([fetchTransactions(), fetchPortfolio()]);
       return true;
-    } catch (error) {
-      logError(error, 'AppContext:updateTransaction');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:updateTransaction');
       return false;
     }
   };
@@ -294,8 +292,8 @@ const addTransaction = async (transaction: any): Promise<boolean> => {
       // Refresh data after deleting transaction
       await Promise.all([fetchTransactions(), fetchPortfolio()]);
       return true;
-    } catch (error) {
-      logError(error, 'AppContext:deleteTransaction');
+    } catch (error: any) {
+      logApiError(error, 'AppContext:deleteTransaction');
       return false;
     }
   };

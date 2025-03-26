@@ -14,8 +14,9 @@ import {
   Divider,
   Chip
 } from '@mui/material';
-import { settingsApi, cryptoApi } from '../services/api';
-import { formatDate, logError, getErrorMessage } from '../utils';
+import { settingsApi, cryptoApi } from '../services/apiService';
+import { formatDate } from '../utils';
+import useErrorHandler from '../hooks/useErrorHandler';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 
@@ -23,95 +24,86 @@ const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
   const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
   const [apiKeyMessage, setApiKeyMessage] = useState<string>('');
   const [apiKeyTestLoading, setApiKeyTestLoading] = useState(false);
+  
+  const { error: localError, withErrorHandling } = useErrorHandler('Settings');
 
   // Carica le impostazioni attuali all'avvio della pagina
   useEffect(() => {
     const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        const response = await settingsApi.getSettings();
-        setApiKey(response.data.coingeckoApiKey || '');
-        if (response.data.lastCryptoUpdate) {
-          setLastUpdateDate(new Date(response.data.lastCryptoUpdate));
-        }
-        setLoading(false);
-      } catch (error) {
-        logError(error, 'Settings:fetchSettings');
-        setError(getErrorMessage(error));
-        setLoading(false);
-      }
+      await withErrorHandling(
+        async () => {
+          setLoading(true);
+          const response = await settingsApi.getSettings();
+          setApiKey(response.data.coingeckoApiKey || '');
+          if (response.data.lastCryptoUpdate) {
+            setLastUpdateDate(new Date(response.data.lastCryptoUpdate));
+          }
+          setLoading(false);
+        },
+        'fetchSettings'
+      );
     };
 
     fetchSettings();
-  }, []);
+  }, [withErrorHandling]);
 
   // Test della chiave API (senza salvarla)
   const handleTestApiKey = async () => {
-    try {
-      setApiKeyTestLoading(true);
-      setError(null);
-      
-      const response = await settingsApi.testApiKey(apiKey);
-      
-      setApiKeyValid(response.data.valid);
-      setApiKeyMessage(response.data.message);
-      
-      setApiKeyTestLoading(false);
-    } catch (error) {
-      logError(error, 'Settings:handleTestApiKey');
-      setApiKeyValid(false);
-      setApiKeyMessage(getErrorMessage(error));
-      setApiKeyTestLoading(false);
-    }
+    await withErrorHandling(
+      async () => {
+        setApiKeyTestLoading(true);
+        
+        const response = await settingsApi.testApiKey(apiKey);
+        
+        setApiKeyValid(response.data.valid);
+        setApiKeyMessage(response.data.message);
+        
+        setApiKeyTestLoading(false);
+      },
+      'testApiKey'
+    );
   };
 
   // Gestisce il salvataggio della chiave API
   const handleSaveApiKey = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await settingsApi.updateSettings({ coingeckoApiKey: apiKey });
-      
-      setApiKeyValid(response.data.data.apiKeyValid);
-      setApiKeyMessage(response.data.data.apiKeyMessage || '');
-      
-      setSuccess(`Chiave API salvata con successo! ${response.data.data.apiKeyValid ? 'La chiave è valida.' : 'La chiave non è valida.'}`);
-      setOpenSnackbar(true);
-      setLoading(false);
-    } catch (error) {
-      logError(error, 'Settings:handleSaveApiKey');
-      setError(getErrorMessage(error));
-      setOpenSnackbar(true);
-      setLoading(false);
-    }
+    await withErrorHandling(
+      async () => {
+        setLoading(true);
+        
+        const response = await settingsApi.updateSettings({ coingeckoApiKey: apiKey });
+        
+        setApiKeyValid(response.data.data.apiKeyValid);
+        setApiKeyMessage(response.data.data.apiKeyMessage || '');
+        
+        setSuccess(`Chiave API salvata con successo! ${response.data.data.apiKeyValid ? 'La chiave è valida.' : 'La chiave non è valida.'}`);
+        setOpenSnackbar(true);
+        setLoading(false);
+      },
+      'updateSettings'
+    );
   };
 
   // Gestisce l'aggiornamento delle criptovalute
   const handleUpdateCryptos = async () => {
-    try {
-      setUpdateLoading(true);
-      setError(null);
-      
-      const response = await cryptoApi.refreshAll();
-      
-      setSuccess(`Aggiornamento completato! Sono state caricate ${response.data.count} criptovalute.`);
-      setLastUpdateDate(new Date());
-      setOpenSnackbar(true);
-      setUpdateLoading(false);
-    } catch (error) {
-      logError(error, 'Settings:handleUpdateCryptos');
-      setError(getErrorMessage(error));
-      setOpenSnackbar(true);
-      setUpdateLoading(false);
-    }
+    await withErrorHandling(
+      async () => {
+        setUpdateLoading(true);
+        
+        const response = await cryptoApi.refreshAll();
+        
+        setSuccess(`Aggiornamento completato! Sono state caricate ${response.data.count} criptovalute.`);
+        setLastUpdateDate(new Date());
+        setOpenSnackbar(true);
+        setUpdateLoading(false);
+      },
+      'refreshCryptos'
+    );
   };
 
   // Chiude lo snackbar
@@ -155,6 +147,12 @@ const Settings: React.FC = () => {
                 variant="outlined"
               />
             </Box>
+          )}
+          
+          {localError.hasError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {localError.message}
+            </Alert>
           )}
           
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
@@ -222,10 +220,10 @@ const Settings: React.FC = () => {
       >
         <Alert 
           onClose={handleCloseSnackbar} 
-          severity={error ? "error" : "success"} 
+          severity={localError.hasError ? "error" : "success"} 
           sx={{ width: '100%' }}
         >
-          {error || success}
+          {localError.hasError ? localError.message : success}
         </Alert>
       </Snackbar>
     </Grid>

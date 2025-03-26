@@ -12,17 +12,17 @@ import {
   CircularProgress,
   Button
 } from '@mui/material';
-import { analyticsApi } from '../services/api';
+import { analyticsApi } from '../services/apiService';
 import { useNotification } from '../context/NotificationContext';
 import useErrorHandler from '../hooks/useErrorHandler';
 import PaymentMethodAnalysis from '../components/analytics/PaymentMethodAnalysis';
+import RealizedProfitAnalysis from '../components/analytics/RealizedProfitAnalysis';
 import PortfolioPerformance from '../components/portfolio/PortfolioPerformance';
 
 const Analytics: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [performanceData, setPerformanceData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   const { showNotification } = useNotification();
   const { error: localError, withErrorHandling } = useErrorHandler('Analytics');
@@ -81,10 +81,10 @@ const Analytics: React.FC = () => {
           Analisi del Portafoglio
         </Typography>
         <Typography variant="body1" color="textSecondary" paragraph>
-          Analizza il tuo portafoglio in modo dettagliato, con dati su performace, costi e metodi di investimento.
+          Analizza il tuo portafoglio in modo dettagliato, con dati su performance, costi e metodi di investimento.
         </Typography>
         
-        {(localError.hasError || error) && (
+        {(localError.hasError) && (
           <Paper 
             sx={{ 
               p: 2, 
@@ -95,7 +95,7 @@ const Analytics: React.FC = () => {
               color: 'error.contrastText'
             }}
           >
-            <Typography>{localError.message || error}</Typography>
+            <Typography>{localError.message}</Typography>
             <Button 
               variant="outlined" 
               sx={{ mt: 1, color: 'white', borderColor: 'white' }}
@@ -162,11 +162,7 @@ const Analytics: React.FC = () => {
                 Visualizza i profitti e le perdite che hai effettivamente realizzato attraverso le vendite di criptovalute.
               </Typography>
               <Divider sx={{ mb: 3 }} />
-              <Box sx={{ p: 4, textAlign: 'center' }}>
-                <Typography variant="body1">
-                  Analisi dettagliata del profit/loss realizzato in arrivo con il prossimo aggiornamento!
-                </Typography>
-              </Box>
+              <RealizedProfitAnalysis />
             </Box>
           )}
 

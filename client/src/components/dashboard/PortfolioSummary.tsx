@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Divider, Grid, Alert, Button } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import { cryptoApi } from '../../services/api';
+import { cryptoApi } from '../../services/apiService';
 import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface PortfolioSummaryProps {

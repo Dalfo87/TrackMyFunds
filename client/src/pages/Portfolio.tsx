@@ -15,7 +15,7 @@ import {
 import { useAppContext } from '../context/AppContext';
 import { useNotification } from '../context/NotificationContext';
 import useErrorHandler from '../hooks/useErrorHandler';
-import { analyticsApi } from '../services/api';
+import { analyticsApi } from '../services/apiService';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PortfolioSummary from '../components/dashboard/PortfolioSummary';
 import PortfolioAssetsList from '../components/portfolio/PortfolioAssetList';

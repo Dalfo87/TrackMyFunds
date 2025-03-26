@@ -17,7 +17,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import { cryptoApi } from '../../services/api';
+import { cryptoApi } from '../../services/apiService.ts';
 import useErrorHandler from '../../hooks/useErrorHandler';
 
 interface PortfolioPerformanceProps {

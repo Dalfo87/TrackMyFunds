@@ -10,7 +10,7 @@ import {
   Box,
   Alert
 } from '@mui/material';
-import { cryptoApi } from '../services/api';
+import { cryptoApi } from '../services/apiService';
 import useErrorHandler from '../hooks/useErrorHandler';
 
 interface CryptoOption {

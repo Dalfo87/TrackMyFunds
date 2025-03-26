@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, CircularProgress, ToggleButtonGroup, ToggleButton, Button, Paper } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { analyticsApi } from '../../services/api';
+import { analyticsApi } from '../../services/apiService';
 import { useNotification } from '../../context/NotificationContext';
 import useErrorHandler from '../../hooks/useErrorHandler';
 import { formatCurrency } from '../../utils';

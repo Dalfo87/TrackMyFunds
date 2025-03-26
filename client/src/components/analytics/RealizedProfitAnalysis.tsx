@@ -20,7 +20,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  TextField,
   SelectChangeEvent
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -30,20 +29,13 @@ import dayjs, { Dayjs } from 'dayjs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { useNotification } from '../../context/NotificationContext';
 import useErrorHandler from '../../hooks/useErrorHandler';
+import { realizedProfitApi } from '../../services/apiService';
 import { 
   formatCurrency, 
   formatPercentage,
   getProfitLossIcon,
   getProfitLossColor
 } from '../../utils';
-
-// Creiamo un nuovo servizio API per i profitti realizzati
-const realizedProfitApi = {
-  getAll: (params = {}) => fetch('/api/realized-profits?' + new URLSearchParams(params)).then(res => res.json()),
-  getTotal: (params = {}) => fetch('/api/realized-profits/total?' + new URLSearchParams(params)).then(res => res.json()),
-  getByPeriod: (groupBy = 'month') => fetch(`/api/realized-profits/by-period?groupBy=${groupBy}`).then(res => res.json()),
-  getByCrypto: (symbol: string) => fetch(`/api/realized-profits/by-crypto/${symbol}`).then(res => res.json())
-};
 
 interface RealizedProfitAnalysisProps {}
 
@@ -200,9 +192,21 @@ const RealizedProfitAnalysis: React.FC<RealizedProfitAnalysisProps> = () => {
 
   if (!summaryData || (transactions.length === 0 && periodData.length === 0)) {
     return (
-      <Typography sx={{ p: 2 }}>
-        Non ci sono dati di profitti/perdite realizzati. Effettua delle vendite di criptovalute per vedere questi dati.
-      </Typography>
+      <Paper sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h6" gutterBottom>
+          Nessun dato disponibile
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Non ci sono dati di profitti/perdite realizzati. Effettua delle vendite di criptovalute verso stablecoin o valuta fiat per vedere questi dati.
+        </Typography>
+        <Button
+          variant="outlined"
+          color="primary"
+          href="/transactions"
+        >
+          Vai alle Transazioni
+        </Button>
+      </Paper>
     );
   }
 
@@ -240,7 +244,7 @@ const RealizedProfitAnalysis: React.FC<RealizedProfitAnalysisProps> = () => {
                 onChange={handleCryptoChange}
               >
                 <MenuItem value="">Tutte</MenuItem>
-                {/* Qui dovresti popolare con le crypto disponibili */}
+                {/* Qui popoliamo con le crypto disponibili */}
                 {summaryData && summaryData.cryptoBreakdown && Object.keys(summaryData.cryptoBreakdown).map((symbol) => (
                   <MenuItem key={symbol} value={symbol}>{symbol}</MenuItem>
                 ))}
@@ -357,7 +361,6 @@ const RealizedProfitAnalysis: React.FC<RealizedProfitAnalysisProps> = () => {
                     dataKey="totalProfit" 
                     name="Profitto/Perdita" 
                     fill="#8884d8"
-                    // Colore condizionale in base al valore
                     fillOpacity={0.8}
                   />
                 </BarChart>

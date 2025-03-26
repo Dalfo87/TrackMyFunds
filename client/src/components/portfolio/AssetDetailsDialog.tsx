@@ -25,7 +25,7 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { transactionApi } from '../../services/api';
+import { transactionApi } from '../../services/apiService';
 import { 
   formatCurrency, 
   formatDate, 
@@ -64,16 +64,10 @@ const AssetDetailsDialog: React.FC<AssetDetailsDialogProps> = ({ open, onClose, 
       async () => {
         setLoading(true);
         
-        // In una implementazione reale, dovresti avere un endpoint per recuperare
-        // le transazioni per un asset specifico. Per ora, simuliamo
-        const response = await transactionApi.getAll();
+        // Recupera le transazioni per questo asset specifico
+        const response = await transactionApi.getAll({ cryptoSymbol: asset.cryptoSymbol });
+        setTransactions(response.data);
         
-        // Filtra le transazioni per il simbolo dell'asset
-        const assetTransactions = response.data.filter(
-          (tx: any) => tx.cryptoSymbol === asset.cryptoSymbol
-        );
-        
-        setTransactions(assetTransactions);
         setLoading(false);
       },
       'fetchTransactions'
