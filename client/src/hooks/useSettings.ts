@@ -1,22 +1,20 @@
 // src/hooks/useSettings.ts
-import { useEffect } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useEffect, useCallback, useRef } from 'react';
 import { 
+  useAppContext,
   selectTheme, 
   selectLanguage, 
   selectNotificationSettings,
   selectPrivacySettings,
   selectDisplaySettings,
-  selectAllSettings 
-} from '../context/selectors';
-import { 
+  selectAllSettings,
   changeTheme, 
   changeLanguage, 
   updateNotificationSettings,
   updatePrivacySettings,
   updateDisplaySettings,
-  resetSettings 
-} from '../context/actions';
+  resetSettings
+} from '../context/AppContext';
 
 interface DisplaySettings {
   fontSize: string;
@@ -60,6 +58,9 @@ interface UseSettingsReturn {
 export function useSettings(): UseSettingsReturn {
   const { state, dispatch } = useAppContext();
   
+  // Flag per prevenire salvataggio durante il caricamento iniziale
+  const isInitialMount = useRef(true);
+  
   // Selettori che estraggono valori dallo stato
   const theme = selectTheme(state);
   const language = selectLanguage(state);
@@ -90,20 +91,43 @@ export function useSettings(): UseSettingsReturn {
         console.error('Errore nel caricamento delle impostazioni:', e);
       }
     }
-  }, []);
+    
+    // Dopo il caricamento iniziale, imposta il flag a false
+    isInitialMount.current = false;
+  }, [dispatch, theme, language]); // Aggiornate le dipendenze
   
-  // Salva le impostazioni in localStorage quando cambiano
+  // Salva le impostazioni in localStorage quando cambiano, ma solo dopo il mount iniziale
   useEffect(() => {
+    // Salta il salvataggio durante il caricamento iniziale
+    if (isInitialMount.current) return;
+    
     localStorage.setItem('app_settings', JSON.stringify(allSettings));
   }, [allSettings]);
   
-  // Action dispatcher
-  const setTheme = (newTheme: string) => dispatch(changeTheme(newTheme));
-  const setLanguage = (newLanguage: string) => dispatch(changeLanguage(newLanguage));
-  const updateNotifications = (settings: Partial<NotificationSettings>) => dispatch(updateNotificationSettings(settings));
-  const updatePrivacy = (settings: Partial<PrivacySettings>) => dispatch(updatePrivacySettings(settings));
-  const updateDisplay = (settings: Partial<DisplaySettings>) => dispatch(updateDisplaySettings(settings));
-  const restoreDefaults = () => dispatch(resetSettings());
+  // Action dispatcher con useCallback
+  const setTheme = useCallback((newTheme: string) => {
+    dispatch(changeTheme(newTheme));
+  }, [dispatch]);
+  
+  const setLanguage = useCallback((newLanguage: string) => {
+    dispatch(changeLanguage(newLanguage));
+  }, [dispatch]);
+  
+  const updateNotifications = useCallback((settings: Partial<NotificationSettings>) => {
+    dispatch(updateNotificationSettings(settings));
+  }, [dispatch]);
+  
+  const updatePrivacy = useCallback((settings: Partial<PrivacySettings>) => {
+    dispatch(updatePrivacySettings(settings));
+  }, [dispatch]);
+  
+  const updateDisplay = useCallback((settings: Partial<DisplaySettings>) => {
+    dispatch(updateDisplaySettings(settings));
+  }, [dispatch]);
+  
+  const restoreDefaults = useCallback(() => {
+    dispatch(resetSettings());
+  }, [dispatch]);
   
   // Applica tema al documento
   useEffect(() => {

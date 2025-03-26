@@ -3,6 +3,32 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import api, { cryptoApi, portfolioApi, transactionApi, logApiError } from '../services/apiService';
 
+// Definizione dell'interfaccia User
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  [key: string]: any;
+}
+
+// Interfacce per le impostazioni
+interface DisplaySettings {
+  fontSize: string;
+  compactMode: boolean;
+  highContrast: boolean;
+}
+
+interface NotificationSettings {
+  email: boolean;
+  push: boolean;
+  frequency: string;
+}
+
+interface PrivacySettings {
+  shareData: boolean;
+  cookiePreferences: string;
+}
+
 // Definizione dello stato
 interface AppState {
   // Dati del portafoglio
@@ -25,7 +51,42 @@ interface AppState {
     loading: boolean;
     error: string | null;
   };
+  // Dati utente
+  user: {
+    data: User | null;
+    isAuthenticated: boolean;
+    loading: boolean;
+    error: string | null;
+  };
+  // Impostazioni
+  settings: {
+    theme: string;
+    language: string;
+    notifications: NotificationSettings;
+    privacy: PrivacySettings;
+    display: DisplaySettings;
+  };
 }
+
+// Valori di default per le impostazioni
+const defaultSettings = {
+  theme: 'light',
+  language: 'it',
+  notifications: {
+    email: true,
+    push: true,
+    frequency: 'daily'
+  },
+  privacy: {
+    shareData: false,
+    cookiePreferences: 'essential'
+  },
+  display: {
+    fontSize: 'medium',
+    compactMode: false,
+    highContrast: false
+  }
+};
 
 // Stato iniziale
 const initialState: AppState = {
@@ -45,21 +106,44 @@ const initialState: AppState = {
     data: [],
     loading: false,
     error: null
-  }
+  },
+  user: {
+    data: null,
+    isAuthenticated: false,
+    loading: false,
+    error: null
+  },
+  settings: defaultSettings
 };
 
 // Tipi di azioni
 type Action =
+  // Portfolio actions
   | { type: 'FETCH_PORTFOLIO_REQUEST' }
   | { type: 'FETCH_PORTFOLIO_SUCCESS'; payload: any }
   | { type: 'FETCH_PORTFOLIO_FAILURE'; payload: string }
+  // Cryptos actions
   | { type: 'FETCH_CRYPTOS_REQUEST' }
   | { type: 'FETCH_CRYPTOS_SUCCESS'; payload: any[] }
   | { type: 'FETCH_CRYPTOS_FAILURE'; payload: string }
+  | { type: 'UPDATE_CRYPTO_PRICES_SUCCESS'; payload: Date }
+  // Transactions actions
   | { type: 'FETCH_TRANSACTIONS_REQUEST' }
   | { type: 'FETCH_TRANSACTIONS_SUCCESS'; payload: any[] }
   | { type: 'FETCH_TRANSACTIONS_FAILURE'; payload: string }
-  | { type: 'UPDATE_CRYPTO_PRICES_SUCCESS'; payload: Date };
+  // User actions
+  | { type: 'LOGIN_REQUEST' }
+  | { type: 'LOGIN_SUCCESS'; payload: User }
+  | { type: 'LOGIN_FAILURE'; payload: string }
+  | { type: 'LOGOUT' }
+  | { type: 'UPDATE_PROFILE'; payload: Partial<User> }
+  // Settings actions
+  | { type: 'CHANGE_THEME'; payload: string }
+  | { type: 'CHANGE_LANGUAGE'; payload: string }
+  | { type: 'UPDATE_NOTIFICATION_SETTINGS'; payload: Partial<NotificationSettings> }
+  | { type: 'UPDATE_PRIVACY_SETTINGS'; payload: Partial<PrivacySettings> }
+  | { type: 'UPDATE_DISPLAY_SETTINGS'; payload: Partial<DisplaySettings> }
+  | { type: 'RESET_SETTINGS' };
 
 // Reducer
 const appReducer = (state: AppState, action: Action): AppState => {
@@ -161,6 +245,113 @@ const appReducer = (state: AppState, action: Action): AppState => {
         }
       };
 
+    // User actions
+    case 'LOGIN_REQUEST':
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          loading: true,
+          error: null
+        }
+      };
+    case 'LOGIN_SUCCESS':
+      return {
+        ...state,
+        user: {
+          data: action.payload,
+          isAuthenticated: true,
+          loading: false,
+          error: null
+        }
+      };
+    case 'LOGIN_FAILURE':
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          loading: false,
+          isAuthenticated: false,
+          error: action.payload
+        }
+      };
+    case 'LOGOUT':
+      return {
+        ...state,
+        user: {
+          data: null,
+          isAuthenticated: false,
+          loading: false,
+          error: null
+        }
+      };
+    case 'UPDATE_PROFILE':
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          data: state.user.data 
+            ? { ...state.user.data, ...action.payload } 
+            : null
+        }
+      };
+
+    // Settings actions
+    case 'CHANGE_THEME':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          theme: action.payload
+        }
+      };
+    case 'CHANGE_LANGUAGE':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          language: action.payload
+        }
+      };
+    case 'UPDATE_NOTIFICATION_SETTINGS':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          notifications: {
+            ...state.settings.notifications,
+            ...action.payload
+          }
+        }
+      };
+    case 'UPDATE_PRIVACY_SETTINGS':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          privacy: {
+            ...state.settings.privacy,
+            ...action.payload
+          }
+        }
+      };
+    case 'UPDATE_DISPLAY_SETTINGS':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          display: {
+            ...state.settings.display,
+            ...action.payload
+          }
+        }
+      };
+    case 'RESET_SETTINGS':
+      return {
+        ...state,
+        settings: defaultSettings
+      };
+
     default:
       return state;
   }
@@ -169,6 +360,7 @@ const appReducer = (state: AppState, action: Action): AppState => {
 // Creazione del context
 interface AppContextProps {
   state: AppState;
+  dispatch: React.Dispatch<Action>; // Aggiungiamo il dispatch come parte dell'API pubblica
   fetchPortfolio: () => Promise<void>;
   fetchCryptos: () => Promise<void>;
   fetchTransactions: () => Promise<void>;
@@ -315,6 +507,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     <AppContext.Provider
       value={{
         state,
+        dispatch, // Esportiamo il dispatch
         fetchPortfolio,
         fetchCryptos,
         fetchTransactions,
@@ -337,3 +530,32 @@ export const useAppContext = (): AppContextProps => {
   }
   return context;
 };
+
+// Action creators per compatibilità con gli hook
+export const loginRequest = () => ({ type: 'LOGIN_REQUEST' as const });
+export const loginSuccess = (user: User) => ({ type: 'LOGIN_SUCCESS' as const, payload: user });
+export const loginFailure = (error: string) => ({ type: 'LOGIN_FAILURE' as const, payload: error });
+export const logout = () => ({ type: 'LOGOUT' as const });
+export const updateProfile = (userData: Partial<User>) => ({ type: 'UPDATE_PROFILE' as const, payload: userData });
+
+export const changeTheme = (theme: string) => ({ type: 'CHANGE_THEME' as const, payload: theme });
+export const changeLanguage = (language: string) => ({ type: 'CHANGE_LANGUAGE' as const, payload: language });
+export const updateNotificationSettings = (settings: Partial<NotificationSettings>) => 
+  ({ type: 'UPDATE_NOTIFICATION_SETTINGS' as const, payload: settings });
+export const updatePrivacySettings = (settings: Partial<PrivacySettings>) => 
+  ({ type: 'UPDATE_PRIVACY_SETTINGS' as const, payload: settings });
+export const updateDisplaySettings = (settings: Partial<DisplaySettings>) => 
+  ({ type: 'UPDATE_DISPLAY_SETTINGS' as const, payload: settings });
+export const resetSettings = () => ({ type: 'RESET_SETTINGS' as const });
+
+// Selettori per compatibilità con gli hook
+export const selectUser = (state: AppState) => state.user.data;
+export const selectIsAuthenticated = (state: AppState) => state.user.isAuthenticated;
+export const selectUserLoading = (state: AppState) => state.user.loading;
+
+export const selectTheme = (state: AppState) => state.settings.theme;
+export const selectLanguage = (state: AppState) => state.settings.language;
+export const selectNotificationSettings = (state: AppState) => state.settings.notifications;
+export const selectPrivacySettings = (state: AppState) => state.settings.privacy;
+export const selectDisplaySettings = (state: AppState) => state.settings.display;
+export const selectAllSettings = (state: AppState) => state.settings;
